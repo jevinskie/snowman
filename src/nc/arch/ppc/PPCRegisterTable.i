@@ -1,0 +1,136 @@
+/**
+ * \file
+ *
+ * Register table for PPC architecture.
+ *
+ * This header is intended for multiple inclusion.
+ */
+
+
+/**
+ * \def REG(lowercase, uppercase, domain, offset, size, comment)
+ *
+ * 
+ * \param lowercase                    Name of the register as a lowercase 
+ *                                     C++ identifier.
+ * \param uppercase                    Name of the register as an UPPERCASE
+ *                                     C++ identifier.
+ * \param domain                       Number of register's domain.
+ * \param offset                       Bit offset of the register inside
+ *                                     the domain.
+ * \param size                         Bit size of the register.
+ * \param comment                      Register description.
+ */
+
+REG(r0, R0, 1, 0 * 64, 64, "")
+REG(r1, R1, 1, 1 * 64, 64, "")
+REG(r2, R2, 1, 2 * 64, 64, "")
+REG(r3, R3, 1, 3 * 64, 64, "")
+REG(r4, R4, 1, 4 * 64, 64, "")
+REG(r5, R5, 1, 5 * 64, 64, "")
+REG(r6, R6, 1, 6 * 64, 64, "")
+REG(r7, R7, 1, 7 * 64, 64, "")
+REG(r8, R8, 1, 8 * 64, 64, "")
+REG(r9, R9, 1, 9 * 64, 64, "")
+REG(r10, R10, 1, 10 * 64, 64, "")
+REG(r11, R11, 1, 11 * 64, 64, "")
+REG(r12, R12, 1, 12 * 64, 64, "")
+REG(r13, R13, 1, 13 * 64, 64, "")
+REG(r14, R14, 1, 14 * 64, 64, "")
+REG(r15, R15, 1, 15 * 64, 64, "")
+REG(r16, R16, 1, 16 * 64, 64, "")
+REG(r17, R17, 1, 17 * 64, 64, "")
+REG(r18, R18, 1, 18 * 64, 64, "")
+REG(r19, R19, 1, 19 * 64, 64, "")
+REG(r20, R20, 1, 20 * 64, 64, "")
+REG(r21, R21, 1, 21 * 64, 64, "")
+REG(r22, R22, 1, 22 * 64, 64, "")
+REG(r23, R23, 1, 23 * 64, 64, "")
+REG(r24, R24, 1, 24 * 64, 64, "")
+REG(r25, R25, 1, 25 * 64, 64, "")
+REG(r26, R26, 1, 26 * 64, 64, "")
+REG(r27, R27, 1, 27 * 64, 64, "")
+REG(r28, R28, 1, 28 * 64, 64, "")
+REG(r29, R29, 1, 29 * 64, 64, "")
+REG(r30, R30, 1, 30 * 64, 64, "")
+REG(r31, R31, 1, 31 * 64, 64, "")
+
+REG(f0, F0, 2, 0 * 64, 64, "")
+REG(f1, F1, 2, 1 * 64, 64, "")
+REG(f2, F2, 2, 2 * 64, 64, "")
+REG(f3, F3, 2, 3 * 64, 64, "")
+REG(f4, F4, 2, 4 * 64, 64, "")
+REG(f5, F5, 2, 5 * 64, 64, "")
+REG(f6, F6, 2, 6 * 64, 64, "")
+REG(f7, F7, 2, 7 * 64, 64, "")
+REG(f8, F8, 2, 8 * 64, 64, "")
+REG(f9, F9, 2, 9 * 64, 64, "")
+REG(f10, F10, 2, 10 * 64, 64, "")
+REG(f11, F11, 2, 11 * 64, 64, "")
+REG(f12, F12, 2, 12 * 64, 64, "")
+REG(f13, F13, 2, 13 * 64, 64, "")
+REG(f14, F14, 2, 14 * 64, 64, "")
+REG(f15, F15, 2, 15 * 64, 64, "")
+REG(f16, F16, 2, 16 * 64, 64, "")
+REG(f17, F17, 2, 17 * 64, 64, "")
+REG(f18, F18, 2, 18 * 64, 64, "")
+REG(f19, F19, 2, 19 * 64, 64, "")
+REG(f20, F20, 2, 20 * 64, 64, "")
+REG(f21, F21, 2, 21 * 64, 64, "")
+REG(f22, F22, 2, 22 * 64, 64, "")
+REG(f23, F23, 2, 23 * 64, 64, "")
+REG(f24, F24, 2, 24 * 64, 64, "")
+REG(f25, F25, 2, 25 * 64, 64, "")
+REG(f26, F26, 2, 26 * 64, 64, "")
+REG(f27, F27, 2, 27 * 64, 64, "")
+REG(f28, F28, 2, 28 * 64, 64, "")
+REG(f29, F29, 2, 29 * 64, 64, "")
+REG(f30, F30, 2, 30 * 64, 64, "")
+REG(f31, F31, 2, 31 * 64, 64, "")
+
+REG(lr, LR, 3, 0, 64, "Link Register")
+REG(ctr, CTR, 4, 0, 64, "Count Register")
+REG(cr, CR, 5, 0, 32, "Condition Register")
+REG(cr0, CR0, 5, 0, 4, "Default Field")
+REG(cr0lt, CR0LT, 5, 0, 1, "")
+REG(cr0gt, CR0GT, 5, 1, 1, "")
+REG(cr0eq, CR0EQ, 5, 2, 1, "")
+REG(cr0un, CR0UN, 5, 3, 1, "")
+REG(cr1, CR1, 5, 4, 4, "Floating Point Condition")
+REG(cr1lt, CR1LT, 5, 4, 1, "")
+REG(cr1gt, CR1GT, 5, 5, 1, "")
+REG(cr1eq, CR1EQ, 5, 6, 1, "")
+REG(cr1un, CR1UN, 5, 7, 1, "")
+REG(cr2, CR2, 5, 8, 4, "")
+REG(cr2lt, CR2LT, 5, 8, 1, "")
+REG(cr2gt, CR2GT, 5, 9, 1, "")
+REG(cr2eq, CR2EQ, 5, 10, 1, "")
+REG(cr2un, CR2UN, 5, 11, 1, "")
+REG(cr3, CR3, 5, 12, 4, "")
+REG(cr3lt, CR3LT, 5, 12, 1, "")
+REG(cr3gt, CR3GT, 5, 13, 1, "")
+REG(cr3eq, CR3EQ, 5, 14, 1, "")
+REG(cr3un, CR3UN, 5, 15, 1, "")
+REG(cr4, CR4, 5, 16, 4, "")
+REG(cr4lt, CR4LT, 5, 16, 1, "")
+REG(cr4gt, CR4GT, 5, 17, 1, "")
+REG(cr4eq, CR4EQ, 5, 18, 1, "")
+REG(cr4un, CR4UN, 5, 19, 1, "")
+REG(cr5, CR5, 5, 20, 4, "")
+REG(cr5lt, CR5LT, 5, 20, 1, "")
+REG(cr5gt, CR5GT, 5, 21, 1, "")
+REG(cr5eq, CR5EQ, 5, 22, 1, "")
+REG(cr5un, CR5UN, 5, 23, 1, "")
+REG(cr6, CR6, 5, 24, 4, "")
+REG(cr6lt, CR6LT, 5, 24, 1, "")
+REG(cr6gt, CR6GT, 5, 25, 1, "")
+REG(cr6eq, CR6EQ, 5, 26, 1, "")
+REG(cr6un, CR6UN, 5, 27, 1, "")
+REG(cr7, CR7, 5, 28, 4, "")
+REG(cr7lt, CR7LT, 5, 28, 1, "")
+REG(cr7gt, CR7GT, 5, 29, 1, "")
+REG(cr7eq, CR7EQ, 5, 30, 1, "")
+REG(cr7un, CR7UN, 5, 31, 1, "")
+REG(xer, XER, 6, 0, 64, "XER Register")
+REG(fpscr, FPSCR, 7, 0, 64, "Floating-Point Status Control Register") 
+
