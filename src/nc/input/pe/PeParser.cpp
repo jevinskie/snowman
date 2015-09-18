@@ -468,6 +468,7 @@ void PeParser::doParse(QIODevice *source, core::image::Image *image, const LogTo
             break;
         case IMAGE_FILE_MACHINE_POWERPCBE:
             image->platform().setArchitecture(QLatin1String("ppc-be"));
+            break;
         default:
             throw ParseError(tr("Unknown machine id: 0x%1.").arg(fileHeader.Machine, 0, 16));
     }
