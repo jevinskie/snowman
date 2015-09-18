@@ -167,6 +167,14 @@ private:
         byteOrder_.convertFrom(ehdr_.e_shstrndx);
 
         switch (ehdr_.e_machine) {
+            case EM_PPC:
+            case EM_PPC64:
+                if (byteOrder_ == ByteOrder::LittleEndian) {
+                    image_->platform().setArchitecture(QLatin1String("ppc-le"));
+                } else {
+                    image_->platform().setArchitecture(QLatin1String("ppc-be"));
+                }
+                break;
             case EM_386:
                 image_->platform().setArchitecture(QLatin1String("i386"));
                 break;
