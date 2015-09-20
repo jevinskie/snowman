@@ -127,16 +127,120 @@ private:
 						_[jump(operand(0))];
 						break;
 					case PPC_BC_LT:
+							if (detail_->op_count > 1) {
+								switch (detail_->operands[0].reg) {
+								#define CREG(lowercase, uppercase) \
+									case PPC_REG_##uppercase: { \
+										_[ jump(lowercase##lt, operand(1), directSuccessor()) ]; \
+									} break;
+									CREG(cr2, CR2);
+									CREG(cr3, CR3);
+									CREG(cr4, CR4);
+									CREG(cr5, CR5);
+									CREG(cr6, CR6);
+									CREG(cr7, CR7);
+								}
+							} else {
+								_[ jump(cr0lt, operand(0), directSuccessor()) ];
+							}
 						break;
-					case PPC_BC_LE:
+					case PPC_BC_LE: {
+							PPCExpressionFactoryCallback then(factory_, program->createBasicBlock(), instruction);
+							if (detail_->op_count > 1) {
+								then[jump(operand(1))];
+								switch (detail_->operands[0].reg) {
+								#define CREG(lowercase, uppercase) \
+									case PPC_REG_##uppercase: { \
+										_[ jump(lowercase##gt, directSuccessor(), then.basicBlock()) ]; \
+									} break;
+									CREG(cr2, CR2);
+									CREG(cr3, CR3);
+									CREG(cr4, CR4);
+									CREG(cr5, CR5);
+									CREG(cr6, CR6);
+									CREG(cr7, CR7);
+								}
+							} else {
+								then[jump(operand(0))];
+								_[ jump(cr0gt, directSuccessor(), then.basicBlock()) ];
+							}
+						}
 						break;
-					case PPC_BC_GE:
+					case PPC_BC_GE: {
+							PPCExpressionFactoryCallback then(factory_, program->createBasicBlock(), instruction);
+							if (detail_->op_count > 1) {
+								then[jump(operand(1))];
+								switch (detail_->operands[0].reg) {
+								#define CREG(lowercase, uppercase) \
+									case PPC_REG_##uppercase: { \
+										_[ jump(lowercase##lt, directSuccessor(), then.basicBlock()) ]; \
+									} break;
+									CREG(cr2, CR2);
+									CREG(cr3, CR3);
+									CREG(cr4, CR4);
+									CREG(cr5, CR5);
+									CREG(cr6, CR6);
+									CREG(cr7, CR7);
+								}
+							} else {
+								then[jump(operand(0))];
+								_[ jump(cr0lt, directSuccessor(), then.basicBlock()) ];
+							}
+						}
 						break;
 					case PPC_BC_GT:
+							if (detail_->op_count > 1) {
+								switch (detail_->operands[0].reg) {
+								#define CREG(lowercase, uppercase) \
+									case PPC_REG_##uppercase: { \
+										_[ jump(lowercase##gt, operand(1), directSuccessor()) ]; \
+									} break;
+									CREG(cr2, CR2);
+									CREG(cr3, CR3);
+									CREG(cr4, CR4);
+									CREG(cr5, CR5);
+									CREG(cr6, CR6);
+									CREG(cr7, CR7);
+								}
+							} else {
+								_[ jump(cr0gt, operand(0), directSuccessor()) ];
+							}
 						break;
 					case PPC_BC_EQ:
+							if (detail_->op_count > 1) {
+								switch (detail_->operands[0].reg) {
+								#define CREG(lowercase, uppercase) \
+									case PPC_REG_##uppercase: { \
+										_[ jump(lowercase##eq, operand(1), directSuccessor()) ]; \
+									} break;
+									CREG(cr2, CR2);
+									CREG(cr3, CR3);
+									CREG(cr4, CR4);
+									CREG(cr5, CR5);
+									CREG(cr6, CR6);
+									CREG(cr7, CR7);
+								}
+							} else {
+								_[ jump(cr0eq, operand(0), directSuccessor()) ];
+							}
 						break;
 					case PPC_BC_NE:
+							if (detail_->op_count > 1) {
+								switch (detail_->operands[0].reg) {
+								#define CREG(lowercase, uppercase) \
+									case PPC_REG_##uppercase: { \
+										_[ jump(~lowercase##eq, operand(1), directSuccessor()) ]; \
+									} break;
+									CREG(cr2, CR2);
+									CREG(cr3, CR3);
+									CREG(cr4, CR4);
+									CREG(cr5, CR5);
+									CREG(cr6, CR6);
+									CREG(cr7, CR7);
+								}
+							} else {
+								_[ jump(~cr0eq, operand(0), directSuccessor()) ];
+							}
 						break;
 					default:
 						_(std::make_unique<core::ir::InlineAssembly>());
@@ -156,22 +260,25 @@ private:
 				_[call(regizter(PPCRegisters::ctr()))];
 			}
 			break;
-
 		case PPC_INS_MTLR: {
-				_[regizter(PPCRegisters::lr()) ^= sign_extend(operand(0))];
+				_[regizter(PPCRegisters::lr()) ^= operand(0,64)];
 			}
 			break;
 		case PPC_INS_MFLR: {
-				_[operand(0) ^= regizter(PPCRegisters::lr())];
+				_[operand(0,64) ^= regizter(PPCRegisters::lr())];
 			}
 			break;
 		case PPC_INS_MTCTR: {
-				_[regizter(PPCRegisters::ctr()) ^= zero_extend(operand(0))];
+				_[regizter(PPCRegisters::ctr()) ^= operand(0)];
 			}
 			break;
 		case PPC_INS_CMPWI:
-		case PPC_INS_CMPLWI:
+		case PPC_INS_CMPDI:
+		case PPC_INS_CMPW:
 		case PPC_INS_CMPD:
+		case PPC_INS_CMPLWI:
+		case PPC_INS_CMPLDI:
+		case PPC_INS_CMPLW:
 		case PPC_INS_CMPLD: {
 			if (detail_->op_count > 2 && detail_->operands[0].type == PPC_OP_REG) {
 				unsigned int reg = detail_->operands[0].reg;
@@ -185,6 +292,7 @@ private:
 								lowercase##eq ^= unsigned_(operand(1)) == operand(2) \
 							]; \
 						} break;
+					CREG(cr2, CR2);
 					CREG(cr3, CR3)
 					CREG(cr4, CR4)
 					CREG(cr5, CR5)
@@ -206,8 +314,22 @@ private:
 			break;
 		case PPC_INS_DCBT: // TODO
 		case PPC_INS_NOP: {
-			break;
 			}
+			break;
+		case PPC_INS_AND:
+		case PPC_INS_ANDI: {
+				_[operand(0) ^= (operand(1) & operand(2))];
+			}
+			break;
+		case PPC_INS_ANDIS: {
+				_[operand(0) ^= (operand(1) & (operand(2) << constant(16)))];
+			}
+			break;
+		case PPC_INS_OR:
+		case PPC_INS_ORI: {
+				_[operand(0) ^= (operand(1) | (operand(2)))];
+			}
+			break;
 		case PPC_INS_ORIS: {
 				_[operand(0) ^= (operand(1) | unsigned_(operand(2) << constant(16)))];
 			}
@@ -218,16 +340,33 @@ private:
 				_[operand(0) ^= (operand(1) + operand(2))];
 			}
 			break;
+		case PPC_INS_ADDIS: {
+				_[operand(0) ^= (operand(1) + (operand(2) << constant(16)))];
+			}
+			break;
+		case PPC_INS_XOR:
+		case PPC_INS_XORI: {
+				_[operand(0) ^= (operand(1) ^ operand(2))];
+			}
+			break;
+		case PPC_INS_XORIS: {
+				_[operand(0) ^= (operand(1) ^ (operand(2) << constant(16)))];
+			}
+			break;
+		case PPC_INS_NAND: {
+				_[operand(0) ^= ~(operand(1) & operand(2))];
+			}
+			break;
+		case PPC_INS_NOR: {
+				_[operand(0) ^= ~(operand(1) | operand(2))];
+			}
+			break;
+		case PPC_INS_LIS: {
+				_[operand(0) ^= (operand(1) << constant(16))];
+			}
+			break;
 		case PPC_INS_NEG: {
 				_[operand(0) ^= -operand(1)];
-			}
-			break;
-		case PPC_INS_ORI: {
-				_[operand(0) ^= (operand(1) | (operand(2)))];
-			}
-			break;
-		case PPC_INS_XOR: {
-				_[operand(0) ^= (operand(1) ^ operand(2))];
 			}
 			break;
 		case PPC_INS_CLRLDI: // TODO

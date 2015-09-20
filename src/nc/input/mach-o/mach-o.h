@@ -36,6 +36,8 @@ static const cpu_type_t CPU_TYPE_I386 = 7;
 static const cpu_type_t CPU_TYPE_X86_64 = CPU_TYPE_I386 | 0x1000000;
 static const cpu_type_t CPU_TYPE_ARM = 12;
 static const cpu_type_t CPU_TYPE_MIPS = 8;
+static const cpu_type_t CPU_TYPE_POWERPC = 18;
+static const cpu_type_t CPU_TYPE_POWERPC64 = CPU_TYPE_POWERPC | 0x1000000;
 
 struct load_command {
     uint32_t cmd;

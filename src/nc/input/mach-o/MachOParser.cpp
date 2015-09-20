@@ -111,6 +111,10 @@ public:
             case CPU_TYPE_ARM:
                 image_->platform().setArchitecture(QLatin1String(byteOrder_ == ByteOrder::LittleEndian ? "arm-le" : "arm-be"));
                 break;
+            case CPU_TYPE_POWERPC:
+            case CPU_TYPE_POWERPC64:
+                image_->platform().setArchitecture(QLatin1String(byteOrder_ == ByteOrder::LittleEndian ? "ppc-le" : "arm-be"));
+                break;
             default:
                 throw ParseError(tr("Unknown CPU type: %1.").arg(header.cputype));
         }

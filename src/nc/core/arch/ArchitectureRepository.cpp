@@ -28,9 +28,9 @@ ArchitectureRepository *createInstance() {
     result.registerArchitecture(std::make_unique<ArmArchitecture>(ByteOrder::BigEndian));
     result.registerArchitecture(std::make_unique<X86Architecture>(X86Architecture::REAL_MODE));
     result.registerArchitecture(std::make_unique<X86Architecture>(X86Architecture::PROTECTED_MODE));
-    result.registerArchitecture(std::make_unique<X86Architecture>(X86Architecture::LONG_MODE));	
-	result.registerArchitecture(std::make_unique<PPCArchitecture>(ByteOrder::LittleEndian));
-	result.registerArchitecture(std::make_unique<PPCArchitecture>(ByteOrder::BigEndian));
+    result.registerArchitecture(std::make_unique<X86Architecture>(X86Architecture::LONG_MODE));
+    result.registerArchitecture(std::make_unique<PPCArchitecture>(ByteOrder::LittleEndian));
+    result.registerArchitecture(std::make_unique<PPCArchitecture>(ByteOrder::BigEndian));
     return &result;
 }
 
