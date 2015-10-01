@@ -101,9 +101,42 @@ public:
     }
 
 private:
+	
+	#define CREG_(lowercase, uppercase, condition, thenTarget, elseTarget) \
+		case PPC_REG_##uppercase: { \
+			_[ jump(lowercase ## condition, thenTarget, elseTarget) ]; \
+		} break;
+
+	#define NCREG_(lowercase, uppercase, condition, thenTarget, elseTarget) \
+		case PPC_REG_##uppercase: { \
+			_[ jump(~lowercase ## condition, thenTarget, elseTarget) ]; \
+	   } break;
+
+	#define CCASE(condition, thenTarget, elseTarget) \
+		switch (detail_->operands[0].reg) { \
+			CREG_(cr2, CR2, condition, thenTarget, elseTarget) \
+			CREG_(cr3, CR3, condition, thenTarget, elseTarget) \
+			CREG_(cr4, CR4, condition, thenTarget, elseTarget) \
+			CREG_(cr5, CR5, condition, thenTarget, elseTarget) \
+			CREG_(cr6, CR6, condition, thenTarget, elseTarget) \
+			CREG_(cr7, CR7, condition, thenTarget, elseTarget) \
+		}
+	
+	#define NCCASE(condition, thenTarget, elseTarget) \
+		switch (detail_->operands[0].reg) { \
+			NCREG_(cr2, CR2, condition, thenTarget, elseTarget) \
+			NCREG_(cr3, CR3, condition, thenTarget, elseTarget) \
+			NCREG_(cr4, CR4, condition, thenTarget, elseTarget) \
+			NCREG_(cr5, CR5, condition, thenTarget, elseTarget) \
+			NCREG_(cr6, CR6, condition, thenTarget, elseTarget) \
+			NCREG_(cr7, CR7, condition, thenTarget, elseTarget) \
+		}
+
 	void createStatements(PPCExpressionFactoryCallback & _,
                                                        const PPCInstruction *instruction,
                                                        core::ir::Program *program) {
+
+
 		auto instr = disassemble(instruction);
 		if (instr == nullptr)
 			return;
@@ -120,6 +153,8 @@ private:
 
 		using namespace core::irgen::expressions;
 
+		//_[regizter(PPCRegisters::r2()) ^= constant(0x28548)];
+
 		switch (instr->id) {
 		case PPC_INS_B: {
 				switch (detail_->bc) {
@@ -128,18 +163,7 @@ private:
 						break;
 					case PPC_BC_LT:
 							if (detail_->op_count > 1) {
-								switch (detail_->operands[0].reg) {
-								#define CREG(lowercase, uppercase) \
-									case PPC_REG_##uppercase: { \
-										_[ jump(lowercase##lt, operand(1), directSuccessor()) ]; \
-									} break;
-									CREG(cr2, CR2);
-									CREG(cr3, CR3);
-									CREG(cr4, CR4);
-									CREG(cr5, CR5);
-									CREG(cr6, CR6);
-									CREG(cr7, CR7);
-								}
+								CCASE(lt, operand(1), directSuccessor())
 							} else {
 								_[ jump(cr0lt, operand(0), directSuccessor()) ];
 							}
@@ -148,18 +172,7 @@ private:
 							PPCExpressionFactoryCallback then(factory_, program->createBasicBlock(), instruction);
 							if (detail_->op_count > 1) {
 								then[jump(operand(1))];
-								switch (detail_->operands[0].reg) {
-								#define CREG(lowercase, uppercase) \
-									case PPC_REG_##uppercase: { \
-										_[ jump(lowercase##gt, directSuccessor(), then.basicBlock()) ]; \
-									} break;
-									CREG(cr2, CR2);
-									CREG(cr3, CR3);
-									CREG(cr4, CR4);
-									CREG(cr5, CR5);
-									CREG(cr6, CR6);
-									CREG(cr7, CR7);
-								}
+								CCASE(gt, directSuccessor(), then.basicBlock())
 							} else {
 								then[jump(operand(0))];
 								_[ jump(cr0gt, directSuccessor(), then.basicBlock()) ];
@@ -170,18 +183,7 @@ private:
 							PPCExpressionFactoryCallback then(factory_, program->createBasicBlock(), instruction);
 							if (detail_->op_count > 1) {
 								then[jump(operand(1))];
-								switch (detail_->operands[0].reg) {
-								#define CREG(lowercase, uppercase) \
-									case PPC_REG_##uppercase: { \
-										_[ jump(lowercase##lt, directSuccessor(), then.basicBlock()) ]; \
-									} break;
-									CREG(cr2, CR2);
-									CREG(cr3, CR3);
-									CREG(cr4, CR4);
-									CREG(cr5, CR5);
-									CREG(cr6, CR6);
-									CREG(cr7, CR7);
-								}
+								CCASE(lt, directSuccessor(), then.basicBlock())
 							} else {
 								then[jump(operand(0))];
 								_[ jump(cr0lt, directSuccessor(), then.basicBlock()) ];
@@ -190,54 +192,21 @@ private:
 						break;
 					case PPC_BC_GT:
 							if (detail_->op_count > 1) {
-								switch (detail_->operands[0].reg) {
-								#define CREG(lowercase, uppercase) \
-									case PPC_REG_##uppercase: { \
-										_[ jump(lowercase##gt, operand(1), directSuccessor()) ]; \
-									} break;
-									CREG(cr2, CR2);
-									CREG(cr3, CR3);
-									CREG(cr4, CR4);
-									CREG(cr5, CR5);
-									CREG(cr6, CR6);
-									CREG(cr7, CR7);
-								}
+								CCASE(gt, operand(1), directSuccessor())
 							} else {
 								_[ jump(cr0gt, operand(0), directSuccessor()) ];
 							}
 						break;
 					case PPC_BC_EQ:
 							if (detail_->op_count > 1) {
-								switch (detail_->operands[0].reg) {
-								#define CREG(lowercase, uppercase) \
-									case PPC_REG_##uppercase: { \
-										_[ jump(lowercase##eq, operand(1), directSuccessor()) ]; \
-									} break;
-									CREG(cr2, CR2);
-									CREG(cr3, CR3);
-									CREG(cr4, CR4);
-									CREG(cr5, CR5);
-									CREG(cr6, CR6);
-									CREG(cr7, CR7);
-								}
+								CCASE(eq, operand(1), directSuccessor())
 							} else {
 								_[ jump(cr0eq, operand(0), directSuccessor()) ];
 							}
 						break;
 					case PPC_BC_NE:
 							if (detail_->op_count > 1) {
-								switch (detail_->operands[0].reg) {
-								#define CREG(lowercase, uppercase) \
-									case PPC_REG_##uppercase: { \
-										_[ jump(~lowercase##eq, operand(1), directSuccessor()) ]; \
-									} break;
-									CREG(cr2, CR2);
-									CREG(cr3, CR3);
-									CREG(cr4, CR4);
-									CREG(cr5, CR5);
-									CREG(cr6, CR6);
-									CREG(cr7, CR7);
-								}
+								NCCASE(eq, operand(1), directSuccessor())
 							} else {
 								_[ jump(~cr0eq, operand(0), directSuccessor()) ];
 							}
@@ -248,15 +217,97 @@ private:
 				}
 			}
 			break;
+		case PPC_INS_BDNZ: {
+				_[
+					regizter(PPCRegisters::ctr()) ^= regizter(PPCRegisters::ctr()) - constant(1),
+					jump(~(regizter(PPCRegisters::ctr()) == constant(0)), operand(0), directSuccessor())
+				];
+			}
+			break;
+		case PPC_INS_BDZ: {
+				_[
+					regizter(PPCRegisters::ctr()) ^= regizter(PPCRegisters::ctr()) - constant(1),
+					jump(regizter(PPCRegisters::ctr()) == constant(0), operand(0), directSuccessor())
+				];
+			}
+			break;
 		case PPC_INS_BL: {
 				_[call(operand(0))];
 			}
 			break;
 		case PPC_INS_BLR: {
-				_[jump(regizter(PPCRegisters::lr()))];
+			switch (detail_->bc) {
+				case PPC_BC_INVALID:
+						_[jump(regizter(PPCRegisters::lr()))];
+						break;
+				case PPC_BC_LT: {
+						PPCExpressionFactoryCallback then(factory_, program->createBasicBlock(), instruction);
+						then[jump(regizter(PPCRegisters::lr()))];
+						if (detail_->op_count == 1) {
+							CCASE(lt, directSuccessor(), then.basicBlock())
+						} else {
+							_[jump(cr0lt, directSuccessor(), then.basicBlock())];
+						}
+					}
+					break;
+				case PPC_BC_LE: {
+						PPCExpressionFactoryCallback then(factory_, program->createBasicBlock(), instruction);
+						then[jump(regizter(PPCRegisters::lr()))];
+						if (detail_->op_count == 1) {
+							CCASE(gt, directSuccessor(), then.basicBlock())
+						} else {
+							_[jump(cr0gt, directSuccessor(), then.basicBlock())];
+						}
+					}
+					break;
+				case PPC_BC_GE: {
+						PPCExpressionFactoryCallback then(factory_, program->createBasicBlock(), instruction);
+						then[jump(regizter(PPCRegisters::lr()))];
+						if (detail_->op_count == 1) {
+							CCASE(lt, directSuccessor(), then.basicBlock())
+						} else {
+							_[jump(cr0lt, directSuccessor(), then.basicBlock())];
+						}
+					}
+					break;
+				case PPC_BC_GT: {
+						PPCExpressionFactoryCallback then(factory_, program->createBasicBlock(), instruction);
+						then[jump(regizter(PPCRegisters::lr()))];
+						if (detail_->op_count == 1) {
+							CCASE(gt, then.basicBlock(), directSuccessor())
+						} else {
+							_[jump(cr0gt, then.basicBlock(), directSuccessor())];
+						}
+					}
+					break;
+				case PPC_BC_EQ: {
+						PPCExpressionFactoryCallback then(factory_, program->createBasicBlock(), instruction);
+						then[ jump(regizter(PPCRegisters::lr())) ];
+						if (detail_->op_count == 1) {
+							CCASE(eq, then.basicBlock(), directSuccessor())
+						} else {
+							_[jump(cr0eq, then.basicBlock(), directSuccessor())];
+						}
+					}
+					break;
+				case PPC_BC_NE: {
+						PPCExpressionFactoryCallback then(factory_, program->createBasicBlock(), instruction);
+						then[ jump(regizter(PPCRegisters::lr())) ];
+						if (detail_->op_count == 1) {
+							NCCASE(eq, then.basicBlock(), directSuccessor())
+						} else {
+							_[jump(~cr0eq, then.basicBlock(), directSuccessor())];
+						}
+					}
+					break;
+				default:
+					_(std::make_unique<core::ir::InlineAssembly>());
+					break;
+				}
 			}
 			break;
-		case PPC_INS_BCTR: {
+		case PPC_INS_BCTR:
+		case PPC_INS_BCTRL: {
 				_[call(regizter(PPCRegisters::ctr()))];
 			}
 			break;
@@ -269,7 +320,7 @@ private:
 			}
 			break;
 		case PPC_INS_MTCTR: {
-				_[regizter(PPCRegisters::ctr()) ^= operand(0)];
+				_[regizter(PPCRegisters::ctr()) ^= operand(0, 64)];
 			}
 			break;
 		case PPC_INS_CMPWI:
@@ -281,7 +332,6 @@ private:
 		case PPC_INS_CMPLW:
 		case PPC_INS_CMPLD: {
 			if (detail_->op_count > 2 && detail_->operands[0].type == PPC_OP_REG) {
-				unsigned int reg = detail_->operands[0].reg;
 #if 1
 				switch (detail_->operands[0].reg) {
 					#define CREG(lowercase, uppercase) \
@@ -344,6 +394,12 @@ private:
 				_[operand(0) ^= (operand(1) + (operand(2) << constant(16)))];
 			}
 			break;
+		case PPC_INS_SUBC:
+		case PPC_INS_SUBFIC:
+		case PPC_INS_SUBF: {
+				_[operand(0) ^= operand(1) - operand(2)];
+			}
+			break;
 		case PPC_INS_XOR:
 		case PPC_INS_XORI: {
 				_[operand(0) ^= (operand(1) ^ operand(2))];
@@ -369,6 +425,39 @@ private:
 				_[operand(0) ^= -operand(1)];
 			}
 			break;
+		case PPC_INS_SLD:
+		case PPC_INS_SLW: {
+				_[operand(0) ^= operand(1) << operand(2)];
+			}
+			break;
+		case PPC_INS_SRD:
+		case PPC_INS_SRW: {
+				_[operand(0) ^= (signed_(operand(1)) >> operand(2))];
+			}
+			break;
+		case PPC_INS_MULLI:
+		case PPC_INS_MULLW:
+		case PPC_INS_MULLD: {
+				_[operand(0) ^= operand(1) * operand(2)];
+			}
+			break;
+		case PPC_INS_DIVW:
+		case PPC_INS_DIVD: {
+				_[operand(0) ^= signed_(operand(1)) / operand(2)];
+			}
+			break;
+		case PPC_INS_RLDICL: {
+				if ((64 - detail_->operands[2].imm) == detail_->operands[3].imm) { // SRDI
+					_[operand(0) ^= (signed_(operand(1)) >> operand(3))];
+				}
+				_(std::make_unique<core::ir::InlineAssembly>());
+			}
+			break;
+		case PPC_INS_SLDI: {// missing 3rd operand from Capstone
+				_[operand(0) ^= (operand(1) << operand(2))];
+			}
+			break;
+		case PPC_INS_CLRLWI: // TODO
 		case PPC_INS_CLRLDI: // TODO
 		case PPC_INS_EXTSW: // TODO
 		case PPC_INS_LI:
@@ -376,18 +465,42 @@ private:
 				_[operand(0) ^= operand(1)];
 			}
 			break;
-		case PPC_INS_STDU: { // stdu RS, D(RA) : EA = RA + D, [EA] = RS, RA = EA
+		case PPC_INS_STDU: { // stdu RS, D(RA) :  EA = RA + D,   [EA] = RS,    RA = EA
+				_[core::irgen::expressions::TermExpression(createDereferenceAddress(detail_->operands[1], 64)) ^=  operand(0)];
 				_(std::make_unique<core::ir::InlineAssembly>());
 			}
 			break;
-		case PPC_INS_STD:
-		case PPC_INS_STW: { // operand 1 = first register, operand 2 = { offset, base register }
-				_(std::make_unique<core::ir::InlineAssembly>());
+		case PPC_INS_STD: {
+				_[core::irgen::expressions::TermExpression(createDereferenceAddress(detail_->operands[1], 64)) ^=  operand(0)];
 			}
 			break;
-		case PPC_INS_LD:
+		case PPC_INS_STW: { 
+				_[core::irgen::expressions::TermExpression(createDereferenceAddress(detail_->operands[1], 32)) ^= truncate(operand(0), 32)];
+			}
+			break;
+		case PPC_INS_STH: {
+				_[core::irgen::expressions::TermExpression(createDereferenceAddress(detail_->operands[1], 16)) ^= truncate(operand(0), 16)];
+			}
+			break;
+		case PPC_INS_STB: {
+				_[core::irgen::expressions::TermExpression(createDereferenceAddress(detail_->operands[1], 8)) ^= truncate(operand(0), 8)];
+			}
+			break;
+		case PPC_INS_LD: {
+				_[operand(0) ^= core::irgen::expressions::TermExpression(createDereferenceAddress(detail_->operands[1], 64))];
+			}
+			break;
 		case PPC_INS_LWZ: {
-				_(std::make_unique<core::ir::InlineAssembly>());
+				_[operand(0) ^= zero_extend(core::irgen::expressions::TermExpression(createDereferenceAddress(detail_->operands[1], 32)))];
+			}
+			break;
+		case PPC_INS_LHZ: {
+				_[operand(0) ^= zero_extend(core::irgen::expressions::TermExpression(createDereferenceAddress(detail_->operands[1], 16)))];
+			}
+			break;
+		//case PPC_INS_LBZU:
+		case PPC_INS_LBZ: {
+				_[operand(0) ^= zero_extend(core::irgen::expressions::TermExpression(createDereferenceAddress(detail_->operands[1], 8)))];
 			}
 			break;
 		default: {
@@ -402,62 +515,52 @@ private:
         return capstone_.disassemble(instruction->addr(), instruction->bytes(), instruction->size());
     }
 
-	std::unique_ptr<core::ir::Dereference> createDereference(const cs_ppc_op &operand) const {
+    std::unique_ptr<core::ir::Dereference> createDereference(const cs_ppc_op &operand, SmallBitSize sizeHint) const {
         return std::make_unique<core::ir::Dereference>(
-            createDereferenceAddress(operand), core::ir::MemoryDomain::MEMORY, 32);
+                   createDereferenceAddress(operand, sizeHint), core::ir::MemoryDomain::MEMORY, sizeHint);
     }
 
-    std::unique_ptr<core::ir::Term> createDereferenceAddress(const cs_ppc_op &operand) const {
+    std::unique_ptr<core::ir::Dereference> createDereferenceAddress(const cs_ppc_op &operand, SmallBitSize sizeHint) const {
         if (operand.type != PPC_OP_MEM) {
             throw core::irgen::InvalidInstructionException(tr("Expected the operand to be a memory operand"));
         }
 
-        const auto &mem = operand.mem;
-
-        auto result = createRegisterAccess(mem.base);
-        auto offsetValue = SizedValue(result->size(), mem.disp);
-
-        if (offsetValue.value() || !result) {
-            auto offset = std::make_unique<core::ir::Constant>(offsetValue);
-
-            if (result) {
-                result = std::make_unique<core::ir::BinaryOperator>(core::ir::BinaryOperator::ADD, std::move(result), std::move(offset), result->size());
+            if (operand.mem.disp) {
+                return std::make_unique<core::ir::Dereference>(std::make_unique<core::ir::BinaryOperator>(core::ir::BinaryOperator::ADD, PPCInstructionAnalyzer::createTerm(getRegister(operand.mem.base)), std::make_unique<core::ir::Constant>(SizedValue(64, operand.mem.disp)), 64), core::ir::MemoryDomain::MEMORY, sizeHint);
             } else {
-                result = std::move(offset);
+                return std::make_unique<core::ir::Dereference>(PPCInstructionAnalyzer::createTerm(getRegister(operand.mem.base)), core::ir::MemoryDomain::MEMORY, sizeHint);
             }
-        }
-        
-        return result;
     }
 
-	core::irgen::expressions::TermExpression operand(std::size_t index, SmallBitSize sizeHint = 32) const {
+	core::irgen::expressions::TermExpression operand(std::size_t index, SmallBitSize sizeHint = 64) const {
         return core::irgen::expressions::TermExpression(createTermForOperand(index, sizeHint));
     }
 
-	std::unique_ptr<core::ir::Term> createTermForOperand(std::size_t index, SmallBitSize sizeHint) const {
+    std::unique_ptr<core::ir::Term> createTermForOperand(std::size_t index, SmallBitSize sizeHint) const {
         assert(index < boost::size(detail_->operands));
 
         const auto &operand = detail_->operands[index];
-        
+
         switch (operand.type) {
-            case PPC_OP_INVALID:
-                throw core::irgen::InvalidInstructionException(tr("The instruction does not have an argument with index %1").arg(index));
-            case PPC_OP_REG: {
-                return std::make_unique<core::ir::MemoryLocationAccess>(getRegister(operand.reg)->memoryLocation().resized(sizeHint));
-            }
-            case PPC_OP_IMM: {
-                /* Immediate value. */
-                return std::make_unique<core::ir::Constant>(SizedValue(sizeHint, operand.imm));
-            }
-            case PPC_OP_MEM: {
-                return std::make_unique<core::ir::Dereference>(createDereferenceAddress(operand), core::ir::MemoryDomain::MEMORY, sizeHint);
-            }
-            default:
-                unreachable();
+        case PPC_OP_INVALID:
+            throw core::irgen::InvalidInstructionException(tr("The instruction does not have an argument with index %1").arg(index));
+        case PPC_OP_REG: {
+            return std::make_unique<core::ir::MemoryLocationAccess>(getRegister(operand.reg)->memoryLocation().resized(sizeHint));
+        }
+        case PPC_OP_IMM: {
+            /* Immediate value. */
+            return std::make_unique<core::ir::Constant>(SizedValue(sizeHint, operand.imm));
+        }
+        case PPC_OP_MEM: {
+            return std::make_unique<core::ir::Dereference>(createDereferenceAddress(operand, sizeHint), core::ir::MemoryDomain::MEMORY, sizeHint);
+        }
+        default:
+            unreachable();
         }
     }
 
-	static std::unique_ptr<core::ir::Term> createRegisterAccess(int reg) {
+
+    static std::unique_ptr<core::ir::Term> createRegisterAccess(int reg) {
         return PPCInstructionAnalyzer::createTerm(getRegister(reg));
     }
 

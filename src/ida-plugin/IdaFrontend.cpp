@@ -142,6 +142,8 @@ QString IdaFrontend::architecture() {
         return QLatin1String("arm-le");
     } else if (inf.procName == QLatin1String("ARMB")) {
         return QLatin1String("arm-be");
+	} else if (inf.procName == QLatin1String("PPC64") || inf.procName == QLatin1String("PPC")) {
+		return QLatin1String("ppc");
     } else {
         /* Assume x86 by default. */
         if (segment_t *segment = get_segm_by_name(".text")) {
