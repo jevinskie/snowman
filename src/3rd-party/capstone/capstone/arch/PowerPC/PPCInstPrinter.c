@@ -148,7 +148,6 @@ void PPC_printInst(MCInst *MI, SStream *O, void *Info)
 				SStream_concat(O, ", 0x%x", (unsigned int)SH);
 			else
 				SStream_concat(O, ", %u", (unsigned int)SH);
-			printOperand(MI, 2, O);
 
 			return;
 		}

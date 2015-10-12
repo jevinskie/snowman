@@ -21,7 +21,7 @@ DefaultCallingConvention::DefaultCallingConvention():
 
     setFirstArgumentOffset(0);
     setArgumentAlignment(32);
-	
+
     std::vector<core::ir::MemoryLocation> rArgs;
     rArgs.push_back(PPCRegisters::r3()->memoryLocation());
     rArgs.push_back(PPCRegisters::r4()->memoryLocation());
@@ -32,7 +32,7 @@ DefaultCallingConvention::DefaultCallingConvention():
     rArgs.push_back(PPCRegisters::r9()->memoryLocation());
     rArgs.push_back(PPCRegisters::r10()->memoryLocation());
     addArgumentGroup(std::move(rArgs));
-	
+
     std::vector<core::ir::MemoryLocation> fArgs;
     fArgs.push_back(PPCRegisters::f1()->memoryLocation());
     fArgs.push_back(PPCRegisters::f2()->memoryLocation());
@@ -50,7 +50,7 @@ DefaultCallingConvention::DefaultCallingConvention():
     addArgumentGroup(std::move(fArgs));
 
     addReturnValueLocation(PPCRegisters::r3()->memoryLocation());
-	addReturnValueLocation(PPCRegisters::f1()->memoryLocation());
+    addReturnValueLocation(PPCRegisters::f1()->memoryLocation());
 
     addEnterStatement(std::make_unique<core::ir::Assignment>(
         std::make_unique<core::ir::MemoryLocationAccess>(PPCRegisters::lr()->memoryLocation()),
