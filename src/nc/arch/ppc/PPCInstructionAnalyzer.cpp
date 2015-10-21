@@ -155,7 +155,9 @@ private:
         //_[regizter(PPCRegisters::r2()) ^= constant(0x28438)]; // set RTOC here
 
         switch (instr->id) {
-        case PPC_INS_B: {
+        case PPC_INS_B:
+        case PPC_INS_BA:
+        case PPC_INS_BC: { // bc 
                 switch (detail_->bc) {
                     case PPC_BC_INVALID: // direct branch
                         _[jump(operand(0))];
@@ -216,6 +218,7 @@ private:
                 }
             }
             break;
+        case PPC_INS_BDNZA:
         case PPC_INS_BDNZ: {
                 _[
                     regizter(PPCRegisters::ctr()) ^= regizter(PPCRegisters::ctr()) - constant(1),
@@ -223,6 +226,7 @@ private:
                 ];
             }
             break;
+        case PPC_INS_BDZA:
         case PPC_INS_BDZ: {
                 _[
                     regizter(PPCRegisters::ctr()) ^= regizter(PPCRegisters::ctr()) - constant(1),
@@ -230,7 +234,8 @@ private:
                 ];
             }
             break;
-        case PPC_INS_BL: {
+        case PPC_INS_BL:
+        case PPC_INS_BLA: {
                 _[call(operand(0))];
             }
             break;
@@ -305,21 +310,28 @@ private:
                 }
             }
             break;
-        case PPC_INS_BCTR:
+        case PPC_INS_BCTR: {
+                _[jump(regizter(PPCRegisters::ctr()))];
+            }
+            break;
         case PPC_INS_BCTRL: {
                 _[call(regizter(PPCRegisters::ctr()))];
             }
             break;
         case PPC_INS_MTLR: {
-                _[regizter(PPCRegisters::lr()) ^= operand(0,64)];
+                _[regizter(PPCRegisters::lr()) ^= operand(0)];
             }
             break;
         case PPC_INS_MFLR: {
-                _[operand(0,64) ^= regizter(PPCRegisters::lr())];
+                _[operand(0) ^= regizter(PPCRegisters::lr())];
             }
             break;
         case PPC_INS_MTCTR: {
-                _[regizter(PPCRegisters::ctr()) ^= operand(0, 64)];
+                _[regizter(PPCRegisters::ctr()) ^= operand(0)];
+            }
+            break;
+        case PPC_INS_SC: {
+                _[call(regizter(PPCRegisters::r11()))]; // hopefully temporary
             }
             break;
         case PPC_INS_CMPWI:
@@ -360,6 +372,10 @@ private:
             break;
         case PPC_INS_DCBT: // TODO
         case PPC_INS_NOP: {
+            }
+            break;
+        case PPC_INS_ANDC: { // TODO
+                _[operand(0) ^= (operand(1) & operand(2))];
             }
             break;
         case PPC_INS_AND:
@@ -470,6 +486,7 @@ private:
             }
             break;
         case PPC_INS_DIVW:
+        case PPC_INS_DIVDU:
         case PPC_INS_DIVD: {
                 _[operand(0) ^= signed_(operand(1)) / operand(2)];
             }
@@ -520,6 +537,15 @@ private:
                 }
             }
             break;
+        case PPC_INS_STDX: {
+                _[core::irgen::expressions::TermExpression(std::make_unique<core::ir::Dereference>(std::make_unique<core::ir::BinaryOperator>(core::ir::BinaryOperator::ADD, PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[0].mem.base)), PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[1].mem.base)), 64), core::ir::MemoryDomain::MEMORY, 64)) ^= operand(0)];
+            }
+            break;
+        case PPC_INS_STDUX: {
+                _[core::irgen::expressions::TermExpression(std::make_unique<core::ir::Dereference>(std::make_unique<core::ir::BinaryOperator>(core::ir::BinaryOperator::ADD, PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[0].mem.base)), PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[1].mem.base)), 64), core::ir::MemoryDomain::MEMORY, 64)) ^=  operand(0),
+                 core::irgen::expressions::TermExpression(std::make_unique<core::ir::MemoryLocationAccess>(getRegister(detail_->operands[1].reg)->memoryLocation().resized(64))) ^= core::irgen::expressions::TermExpression(std::make_unique<core::ir::BinaryOperator>(core::ir::BinaryOperator::ADD, PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[1].mem.base)), std::make_unique<core::ir::Constant>(SizedValue(64, detail_->operands[1].mem.disp)), 64))];
+            }
+            break;
         case PPC_INS_STDU: { // stdu RS, D(RA) :  EA = RA + D,   [EA] = RS,    RA = EA
                 _[core::irgen::expressions::TermExpression(createDereferenceAddress(detail_->operands[1], 64)) ^=  operand(0),
                  core::irgen::expressions::TermExpression(std::make_unique<core::ir::MemoryLocationAccess>(getRegister(detail_->operands[1].reg)->memoryLocation().resized(64))) ^= core::irgen::expressions::TermExpression(std::make_unique<core::ir::BinaryOperator>(core::ir::BinaryOperator::ADD, PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[1].mem.base)), std::make_unique<core::ir::Constant>(SizedValue(64, detail_->operands[1].mem.disp)), 64))];
@@ -529,8 +555,17 @@ private:
                 _[core::irgen::expressions::TermExpression(createDereferenceAddress(detail_->operands[1], 64)) ^=  operand(0)];
             }
             break;
+        case PPC_INS_STWX: {
+                _[core::irgen::expressions::TermExpression(std::make_unique<core::ir::Dereference>(std::make_unique<core::ir::BinaryOperator>(core::ir::BinaryOperator::ADD, PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[0].mem.base)), PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[1].mem.base)), 64), core::ir::MemoryDomain::MEMORY, 32)) ^= truncate(operand(0), 32)];
+            }
+            break;
+        case PPC_INS_STWUX: {
+                _[core::irgen::expressions::TermExpression(std::make_unique<core::ir::Dereference>(std::make_unique<core::ir::BinaryOperator>(core::ir::BinaryOperator::ADD, PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[0].mem.base)), PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[1].mem.base)), 64), core::ir::MemoryDomain::MEMORY, 32)) ^=  truncate(operand(0), 32),
+                 core::irgen::expressions::TermExpression(std::make_unique<core::ir::MemoryLocationAccess>(getRegister(detail_->operands[1].reg)->memoryLocation().resized(64))) ^= core::irgen::expressions::TermExpression(std::make_unique<core::ir::BinaryOperator>(core::ir::BinaryOperator::ADD, PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[1].mem.base)), std::make_unique<core::ir::Constant>(SizedValue(64, detail_->operands[1].mem.disp)), 64))];
+            }
+            break;
         case PPC_INS_STWU: {
-                _[core::irgen::expressions::TermExpression(createDereferenceAddress(detail_->operands[1], 32)) ^=  operand(0),
+                _[core::irgen::expressions::TermExpression(createDereferenceAddress(detail_->operands[1], 32)) ^=  truncate(operand(0), 32),
                  core::irgen::expressions::TermExpression(std::make_unique<core::ir::MemoryLocationAccess>(getRegister(detail_->operands[1].reg)->memoryLocation().resized(64))) ^= core::irgen::expressions::TermExpression(std::make_unique<core::ir::BinaryOperator>(core::ir::BinaryOperator::ADD, PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[1].mem.base)), std::make_unique<core::ir::Constant>(SizedValue(64, detail_->operands[1].mem.disp)), 64))];
             }
             break;
@@ -538,8 +573,17 @@ private:
                 _[core::irgen::expressions::TermExpression(createDereferenceAddress(detail_->operands[1], 32)) ^= truncate(operand(0), 32)];
             }
             break;
+        case PPC_INS_STHX: {
+                _[core::irgen::expressions::TermExpression(std::make_unique<core::ir::Dereference>(std::make_unique<core::ir::BinaryOperator>(core::ir::BinaryOperator::ADD, PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[0].mem.base)), PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[1].mem.base)), 64), core::ir::MemoryDomain::MEMORY, 16)) ^= truncate(operand(0), 16)];
+            }
+            break;
+        case PPC_INS_STHUX: {
+                _[core::irgen::expressions::TermExpression(std::make_unique<core::ir::Dereference>(std::make_unique<core::ir::BinaryOperator>(core::ir::BinaryOperator::ADD, PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[0].mem.base)), PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[1].mem.base)), 64), core::ir::MemoryDomain::MEMORY, 16)) ^= truncate(operand(0), 16),
+                 core::irgen::expressions::TermExpression(std::make_unique<core::ir::MemoryLocationAccess>(getRegister(detail_->operands[1].reg)->memoryLocation().resized(64))) ^= core::irgen::expressions::TermExpression(std::make_unique<core::ir::BinaryOperator>(core::ir::BinaryOperator::ADD, PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[1].mem.base)), std::make_unique<core::ir::Constant>(SizedValue(64, detail_->operands[1].mem.disp)), 64))];
+            }
+            break;
         case PPC_INS_STHU: {
-                _[core::irgen::expressions::TermExpression(createDereferenceAddress(detail_->operands[1], 16)) ^=  operand(0),
+                _[core::irgen::expressions::TermExpression(createDereferenceAddress(detail_->operands[1], 16)) ^= truncate(operand(0), 16),
                  core::irgen::expressions::TermExpression(std::make_unique<core::ir::MemoryLocationAccess>(getRegister(detail_->operands[1].reg)->memoryLocation().resized(64))) ^= core::irgen::expressions::TermExpression(std::make_unique<core::ir::BinaryOperator>(core::ir::BinaryOperator::ADD, PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[1].mem.base)), std::make_unique<core::ir::Constant>(SizedValue(64, detail_->operands[1].mem.disp)), 64))];
             }
             break;
@@ -547,13 +591,31 @@ private:
                 _[core::irgen::expressions::TermExpression(createDereferenceAddress(detail_->operands[1], 16)) ^= truncate(operand(0), 16)];
             }
             break;
+        case PPC_INS_STBX: {
+                _[core::irgen::expressions::TermExpression(std::make_unique<core::ir::Dereference>(std::make_unique<core::ir::BinaryOperator>(core::ir::BinaryOperator::ADD, PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[0].mem.base)), PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[1].mem.base)), 64), core::ir::MemoryDomain::MEMORY, 8)) ^= truncate(operand(0), 8)];
+            }
+            break;
+        case PPC_INS_STBUX: {
+                _[core::irgen::expressions::TermExpression(std::make_unique<core::ir::Dereference>(std::make_unique<core::ir::BinaryOperator>(core::ir::BinaryOperator::ADD, PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[0].mem.base)), PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[1].mem.base)), 64), core::ir::MemoryDomain::MEMORY, 8)) ^=  truncate(operand(0), 8),
+                 core::irgen::expressions::TermExpression(std::make_unique<core::ir::MemoryLocationAccess>(getRegister(detail_->operands[1].reg)->memoryLocation().resized(64))) ^= core::irgen::expressions::TermExpression(std::make_unique<core::ir::BinaryOperator>(core::ir::BinaryOperator::ADD, PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[1].mem.base)), std::make_unique<core::ir::Constant>(SizedValue(64, detail_->operands[1].mem.disp)), 64))];
+            }
+            break;
         case PPC_INS_STBU: {
-                _[core::irgen::expressions::TermExpression(createDereferenceAddress(detail_->operands[1], 8)) ^=  operand(0),
+                _[core::irgen::expressions::TermExpression(createDereferenceAddress(detail_->operands[1], 8)) ^=  truncate(operand(0), 8),
                  core::irgen::expressions::TermExpression(std::make_unique<core::ir::MemoryLocationAccess>(getRegister(detail_->operands[1].reg)->memoryLocation().resized(64))) ^= core::irgen::expressions::TermExpression(std::make_unique<core::ir::BinaryOperator>(core::ir::BinaryOperator::ADD, PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[1].mem.base)), std::make_unique<core::ir::Constant>(SizedValue(64, detail_->operands[1].mem.disp)), 64))];
             }
             break;
         case PPC_INS_STB: {
                 _[core::irgen::expressions::TermExpression(createDereferenceAddress(detail_->operands[1], 8)) ^= truncate(operand(0), 8)];
+            }
+            break;
+        case PPC_INS_LDX: {
+                _[operand(0) ^= core::irgen::expressions::TermExpression(std::make_unique<core::ir::Dereference>(std::make_unique<core::ir::BinaryOperator>(core::ir::BinaryOperator::ADD, PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[0].mem.base)), PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[1].mem.base)), 64), core::ir::MemoryDomain::MEMORY, 64))];
+            }
+            break;
+        case PPC_INS_LDUX: {
+                _[operand(0) ^= core::irgen::expressions::TermExpression(std::make_unique<core::ir::Dereference>(std::make_unique<core::ir::BinaryOperator>(core::ir::BinaryOperator::ADD, PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[0].mem.base)), PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[1].mem.base)), 64), core::ir::MemoryDomain::MEMORY, 64)),
+                 core::irgen::expressions::TermExpression(std::make_unique<core::ir::MemoryLocationAccess>(getRegister(detail_->operands[1].reg)->memoryLocation().resized(64))) ^= core::irgen::expressions::TermExpression(std::make_unique<core::ir::BinaryOperator>(core::ir::BinaryOperator::ADD, PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[1].mem.base)), std::make_unique<core::ir::Constant>(SizedValue(64, detail_->operands[1].mem.disp)), 64))];
             }
             break;
         case PPC_INS_LDU: { // ldu RT, DS(RA) :  EA = RA + DS,   RT = [EA],  RA = EA
@@ -565,8 +627,17 @@ private:
                 _[operand(0) ^= core::irgen::expressions::TermExpression(createDereferenceAddress(detail_->operands[1], 64))];
             }
             break;
+        case PPC_INS_LWZX: {
+                _[operand(0) ^= zero_extend(core::irgen::expressions::TermExpression(std::make_unique<core::ir::Dereference>(std::make_unique<core::ir::BinaryOperator>(core::ir::BinaryOperator::ADD, PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[0].mem.base)), PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[1].mem.base)), 64), core::ir::MemoryDomain::MEMORY, 32)))];
+            }
+            break;
+        case PPC_INS_LWZUX: {
+                _[operand(0) ^= zero_extend(core::irgen::expressions::TermExpression(std::make_unique<core::ir::Dereference>(std::make_unique<core::ir::BinaryOperator>(core::ir::BinaryOperator::ADD, PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[0].mem.base)), PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[1].mem.base)), 64), core::ir::MemoryDomain::MEMORY, 32))),
+                 core::irgen::expressions::TermExpression(std::make_unique<core::ir::MemoryLocationAccess>(getRegister(detail_->operands[1].reg)->memoryLocation().resized(64))) ^= core::irgen::expressions::TermExpression(std::make_unique<core::ir::BinaryOperator>(core::ir::BinaryOperator::ADD, PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[1].mem.base)), std::make_unique<core::ir::Constant>(SizedValue(64, detail_->operands[1].mem.disp)), 64))];
+            }
+            break;
         case PPC_INS_LWZU: {
-                _[operand(0) ^= core::irgen::expressions::TermExpression(createDereferenceAddress(detail_->operands[1], 32)),
+                _[operand(0) ^= zero_extend(core::irgen::expressions::TermExpression(createDereferenceAddress(detail_->operands[1], 32))),
                  core::irgen::expressions::TermExpression(std::make_unique<core::ir::MemoryLocationAccess>(getRegister(detail_->operands[1].reg)->memoryLocation().resized(64))) ^= core::irgen::expressions::TermExpression(std::make_unique<core::ir::BinaryOperator>(core::ir::BinaryOperator::ADD, PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[1].mem.base)), std::make_unique<core::ir::Constant>(SizedValue(64, detail_->operands[1].mem.disp)), 64))];
             }
             break;
@@ -574,12 +645,30 @@ private:
                 _[operand(0) ^= zero_extend(core::irgen::expressions::TermExpression(createDereferenceAddress(detail_->operands[1], 32)))];
             }
             break;
+        case PPC_INS_LWAX: {
+                _[operand(0) ^= sign_extend(core::irgen::expressions::TermExpression(std::make_unique<core::ir::Dereference>(std::make_unique<core::ir::BinaryOperator>(core::ir::BinaryOperator::ADD, PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[0].mem.base)), PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[1].mem.base)), 64), core::ir::MemoryDomain::MEMORY, 32)))];
+            }
+            break;
+        case PPC_INS_LWAUX: {
+                _[operand(0) ^= sign_extend(core::irgen::expressions::TermExpression(std::make_unique<core::ir::Dereference>(std::make_unique<core::ir::BinaryOperator>(core::ir::BinaryOperator::ADD, PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[0].mem.base)), PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[1].mem.base)), 64), core::ir::MemoryDomain::MEMORY, 32))),
+                 core::irgen::expressions::TermExpression(std::make_unique<core::ir::MemoryLocationAccess>(getRegister(detail_->operands[1].reg)->memoryLocation().resized(64))) ^= core::irgen::expressions::TermExpression(std::make_unique<core::ir::BinaryOperator>(core::ir::BinaryOperator::ADD, PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[1].mem.base)), std::make_unique<core::ir::Constant>(SizedValue(64, detail_->operands[1].mem.disp)), 64))];
+            }
+            break;
         case PPC_INS_LWA: {
                 _[operand(0) ^= sign_extend(core::irgen::expressions::TermExpression(createDereferenceAddress(detail_->operands[1], 32)))];
             }
             break;
+        case PPC_INS_LHZX: {
+                _[operand(0) ^= zero_extend(core::irgen::expressions::TermExpression(std::make_unique<core::ir::Dereference>(std::make_unique<core::ir::BinaryOperator>(core::ir::BinaryOperator::ADD, PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[0].mem.base)), PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[1].mem.base)), 64), core::ir::MemoryDomain::MEMORY, 16)))];
+            }
+            break;
+        case PPC_INS_LHZUX: {
+                _[operand(0) ^= zero_extend(core::irgen::expressions::TermExpression(std::make_unique<core::ir::Dereference>(std::make_unique<core::ir::BinaryOperator>(core::ir::BinaryOperator::ADD, PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[0].mem.base)), PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[1].mem.base)), 64), core::ir::MemoryDomain::MEMORY, 16))),
+                 core::irgen::expressions::TermExpression(std::make_unique<core::ir::MemoryLocationAccess>(getRegister(detail_->operands[1].reg)->memoryLocation().resized(64))) ^= core::irgen::expressions::TermExpression(std::make_unique<core::ir::BinaryOperator>(core::ir::BinaryOperator::ADD, PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[1].mem.base)), std::make_unique<core::ir::Constant>(SizedValue(64, detail_->operands[1].mem.disp)), 64))];
+            }
+            break;
         case PPC_INS_LHZU: {
-                _[operand(0) ^= core::irgen::expressions::TermExpression(createDereferenceAddress(detail_->operands[1], 16)),
+                _[operand(0) ^= zero_extend(core::irgen::expressions::TermExpression(createDereferenceAddress(detail_->operands[1], 16))),
                  core::irgen::expressions::TermExpression(std::make_unique<core::ir::MemoryLocationAccess>(getRegister(detail_->operands[1].reg)->memoryLocation().resized(64))) ^= core::irgen::expressions::TermExpression(std::make_unique<core::ir::BinaryOperator>(core::ir::BinaryOperator::ADD, PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[1].mem.base)), std::make_unique<core::ir::Constant>(SizedValue(64, detail_->operands[1].mem.disp)), 64))];
             }
             break;
@@ -587,12 +676,35 @@ private:
                 _[operand(0) ^= zero_extend(core::irgen::expressions::TermExpression(createDereferenceAddress(detail_->operands[1], 16)))];
             }
             break;
+        case PPC_INS_LHAX: {
+                _[operand(0) ^= sign_extend(core::irgen::expressions::TermExpression(std::make_unique<core::ir::Dereference>(std::make_unique<core::ir::BinaryOperator>(core::ir::BinaryOperator::ADD, PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[0].mem.base)), PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[1].mem.base)), 64), core::ir::MemoryDomain::MEMORY, 16)))];
+            }
+            break;
+        case PPC_INS_LHAUX: {
+                _[operand(0) ^= sign_extend(core::irgen::expressions::TermExpression(std::make_unique<core::ir::Dereference>(std::make_unique<core::ir::BinaryOperator>(core::ir::BinaryOperator::ADD, PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[0].mem.base)), PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[1].mem.base)), 64), core::ir::MemoryDomain::MEMORY, 16))),
+                 core::irgen::expressions::TermExpression(std::make_unique<core::ir::MemoryLocationAccess>(getRegister(detail_->operands[1].reg)->memoryLocation().resized(64))) ^= core::irgen::expressions::TermExpression(std::make_unique<core::ir::BinaryOperator>(core::ir::BinaryOperator::ADD, PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[1].mem.base)), std::make_unique<core::ir::Constant>(SizedValue(64, detail_->operands[1].mem.disp)), 64))];
+            }
+            break;
+        case PPC_INS_LHAU: {
+                _[operand(0) ^= sign_extend(core::irgen::expressions::TermExpression(createDereferenceAddress(detail_->operands[1], 16))),
+                 core::irgen::expressions::TermExpression(std::make_unique<core::ir::MemoryLocationAccess>(getRegister(detail_->operands[1].reg)->memoryLocation().resized(64))) ^= core::irgen::expressions::TermExpression(std::make_unique<core::ir::BinaryOperator>(core::ir::BinaryOperator::ADD, PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[1].mem.base)), std::make_unique<core::ir::Constant>(SizedValue(64, detail_->operands[1].mem.disp)), 64))];
+            }
+            break;
         case PPC_INS_LHA: {
                 _[operand(0) ^= sign_extend(core::irgen::expressions::TermExpression(createDereferenceAddress(detail_->operands[1], 16)))];
             }
             break;
+        case PPC_INS_LBZX: {
+                _[operand(0) ^= zero_extend(core::irgen::expressions::TermExpression(std::make_unique<core::ir::Dereference>(std::make_unique<core::ir::BinaryOperator>(core::ir::BinaryOperator::ADD, PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[0].mem.base)), PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[1].mem.base)), 64), core::ir::MemoryDomain::MEMORY, 8)))];
+            }
+            break;
+        case PPC_INS_LBZUX: {
+                _[operand(0) ^= zero_extend(core::irgen::expressions::TermExpression(std::make_unique<core::ir::Dereference>(std::make_unique<core::ir::BinaryOperator>(core::ir::BinaryOperator::ADD, PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[0].mem.base)), PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[1].mem.base)), 64), core::ir::MemoryDomain::MEMORY, 8))),
+                 core::irgen::expressions::TermExpression(std::make_unique<core::ir::MemoryLocationAccess>(getRegister(detail_->operands[1].reg)->memoryLocation().resized(64))) ^= core::irgen::expressions::TermExpression(std::make_unique<core::ir::BinaryOperator>(core::ir::BinaryOperator::ADD, PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[1].mem.base)), std::make_unique<core::ir::Constant>(SizedValue(64, detail_->operands[1].mem.disp)), 64))];
+            }
+            break;
         case PPC_INS_LBZU: {
-                _[operand(0) ^= core::irgen::expressions::TermExpression(createDereferenceAddress(detail_->operands[1], 8)),
+                _[operand(0) ^= zero_extend(core::irgen::expressions::TermExpression(createDereferenceAddress(detail_->operands[1], 8))),
                  core::irgen::expressions::TermExpression(std::make_unique<core::ir::MemoryLocationAccess>(getRegister(detail_->operands[1].reg)->memoryLocation().resized(64))) ^= core::irgen::expressions::TermExpression(std::make_unique<core::ir::BinaryOperator>(core::ir::BinaryOperator::ADD, PPCInstructionAnalyzer::createTerm(getRegister(detail_->operands[1].mem.base)), std::make_unique<core::ir::Constant>(SizedValue(64, detail_->operands[1].mem.disp)), 64))];
             }
             break;

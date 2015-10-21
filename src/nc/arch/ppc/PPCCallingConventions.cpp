@@ -20,7 +20,7 @@ DefaultCallingConvention::DefaultCallingConvention():
     setStackPointer(PPCRegisters::r1()->memoryLocation());
 
     setFirstArgumentOffset(0);
-    setArgumentAlignment(32);
+    setArgumentAlignment(64);
 
     std::vector<core::ir::MemoryLocation> rArgs;
     rArgs.push_back(PPCRegisters::r3()->memoryLocation());

@@ -25,7 +25,7 @@ PPCArchitecture::PPCArchitecture(ByteOrder byteOrder):
     } else {
         setName(QLatin1String("ppc-be"));
     }
-    setBitness(32);
+    setBitness(64);
     setMaxInstructionSize(PPCInstruction::maxSize());
 
     setRegisters(PPCRegisters::instance());
