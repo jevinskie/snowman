@@ -25,7 +25,7 @@ class PPCDisassembler: public core::arch::Disassembler {
 
 public:
     /**
-     * \param architecture Valid pointer to the ARM architecture.
+     * \param architecture Valid pointer to the PPC architecture.
      */
     PPCDisassembler(const PPCArchitecture *architecture);
 
