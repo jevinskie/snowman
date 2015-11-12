@@ -21,7 +21,7 @@ namespace {
 ArchitectureRepository *createInstance() {
     using nc::arch::arm::ArmArchitecture;
     using nc::arch::x86::X86Architecture;
-	using nc::arch::ppc::PPCArchitecture;
+    using nc::arch::ppc::PPCArchitecture;
 
     static ArchitectureRepository result;
     result.registerArchitecture(std::make_unique<ArmArchitecture>(ByteOrder::LittleEndian));

@@ -58,6 +58,6 @@ DefaultCallingConvention::DefaultCallingConvention():
     ));
 }
 
-}}} // namespace nc::arch::arm
+}}} // namespace nc::arch::ppc
 
 /* vim:set et sts=4 sw=4: */

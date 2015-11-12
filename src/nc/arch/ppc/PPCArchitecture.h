@@ -11,9 +11,6 @@ namespace nc {
 namespace arch {
 namespace ppc {
 
-/**
- * 32-bit ARM Architecture.
- */
 class PPCArchitecture: public nc::core::arch::Architecture {
     ByteOrder byteOrder_;
 
