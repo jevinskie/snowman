@@ -701,6 +701,10 @@ private:
                 _(std::make_unique<core::ir::InlineAssembly>());
             }
             break;
+        case PPC_INS_MFOCRF: { // TODO: missing FXM operand from Capstone
+                _(std::make_unique<core::ir::InlineAssembly>());
+            }
+            break;
         case PPC_INS_SC: {
                 // hopefully temporary
                 _[call(regizter(PPCRegisters::r11()))];
@@ -807,13 +811,24 @@ private:
                 _[operand(0) ^= (operand(1) | unsigned_(operand(2) << constant(16)))];
             }
             break;
+        case PPC_INS_ADDIC: // TODO
         case PPC_INS_ADDI: {
                 _[operand(0) ^= (operand(1) + signed_(operand(2)))];
             }
             break;
+        case PPC_INS_ADDE: // TODO
         case PPC_INS_ADDC: // TODO
         case PPC_INS_ADD: {
                 _[operand(0) ^= (operand(1) + operand(2))];
+                if (detail_->update_cr0) {
+                    _[cr0lt ^= signed_(operand(0)) < constant(0),
+                      cr0gt ^= signed_(operand(0)) > constant(0),
+                      cr0eq ^= unsigned_(operand(0)) == constant(0)];
+                }
+            }
+            break;
+        case PPC_INS_ADDZE: { // TODO
+                _[operand(0) ^= operand(1)]; // + CARRY FLAG
                 if (detail_->update_cr0) {
                     _[cr0lt ^= signed_(operand(0)) < constant(0),
                       cr0gt ^= signed_(operand(0)) > constant(0),
@@ -830,7 +845,7 @@ private:
             }
             break;
         case PPC_INS_SUB:
-        case PPC_INS_SUBC:
+        case PPC_INS_SUBC: // TODO
         case PPC_INS_SUBF:
         case PPC_INS_SUBFC: { // TODO
                 _[operand(0) ^= operand(1) - operand(2)];
@@ -915,16 +930,74 @@ private:
                 }
             }
             break;
-        case PPC_INS_MULLI:
-        case PPC_INS_MULLW:
-        case PPC_INS_MULLD: {
+        case PPC_INS_MULLI: {
                 _[operand(0) ^= operand(1) * operand(2)];
             }
             break;
+        case PPC_INS_MULLW:
+        case PPC_INS_MULLD: {
+                _[operand(0) ^= operand(1) * operand(2)];
+                if (detail_->update_cr0) {
+                    _[cr0lt ^= signed_(operand(0)) < constant(0),
+                      cr0gt ^= signed_(operand(0)) > constant(0),
+                      cr0eq ^= unsigned_(operand(0)) == constant(0)];
+                }
+            }
+            break;
+        case PPC_INS_MULHD: {
+                _[operand(0) ^= signed_(operand(1) * operand(2)) >> constant(64)];
+                if (detail_->update_cr0) {
+                    _[cr0lt ^= signed_(operand(0)) < constant(0),
+                      cr0gt ^= signed_(operand(0)) > constant(0),
+                      cr0eq ^= unsigned_(operand(0)) == constant(0)];
+                }
+            }
+            break;
+        case PPC_INS_MULHW: {
+                _[operand(0) ^= signed_(operand(1) * operand(2)) >> constant(32)];
+                if (detail_->update_cr0) {
+                    _[cr0lt ^= signed_(operand(0)) < constant(0),
+                      cr0gt ^= signed_(operand(0)) > constant(0),
+                      cr0eq ^= unsigned_(operand(0)) == constant(0)];
+                }
+            }
+            break;
+        case PPC_INS_MULHDU: {
+                _[operand(0) ^= unsigned_(operand(1) * operand(2)) >> constant(64)];
+                if (detail_->update_cr0) {
+                    _[cr0lt ^= signed_(operand(0)) < constant(0),
+                      cr0gt ^= signed_(operand(0)) > constant(0),
+                      cr0eq ^= unsigned_(operand(0)) == constant(0)];
+                }
+            }
+            break;
+        case PPC_INS_MULHWU: {
+                _[operand(0) ^= unsigned_(operand(1) * operand(2)) >> constant(32)];
+                if (detail_->update_cr0) {
+                    _[cr0lt ^= signed_(operand(0)) < constant(0),
+                      cr0gt ^= signed_(operand(0)) > constant(0),
+                      cr0eq ^= unsigned_(operand(0)) == constant(0)];
+                }
+            }
+            break;
         case PPC_INS_DIVW:
-        case PPC_INS_DIVDU:
         case PPC_INS_DIVD: {
                 _[operand(0) ^= signed_(operand(1)) / operand(2)];
+                if (detail_->update_cr0) {
+                    _[cr0lt ^= signed_(operand(0)) < constant(0),
+                      cr0gt ^= signed_(operand(0)) > constant(0),
+                      cr0eq ^= unsigned_(operand(0)) == constant(0)];
+                }
+            }
+            break;
+        case PPC_INS_DIVWU:
+        case PPC_INS_DIVDU: {
+                _[operand(0) ^= unsigned_(operand(1)) / operand(2)];
+                if (detail_->update_cr0) {
+                    _[cr0lt ^= signed_(operand(0)) < constant(0),
+                      cr0gt ^= signed_(operand(0)) > constant(0),
+                      cr0eq ^= unsigned_(operand(0)) == constant(0)];
+                }
             }
             break;
         case PPC_INS_RLDICL: {
@@ -968,6 +1041,17 @@ private:
         case PPC_INS_ROTLD:
         case PPC_INS_ROTLDI: {
                 _[operand(0) ^= (operand(1) << operand(2) | unsigned_(operand(1)) >> (constant(64) - operand(2)))];
+                if (detail_->update_cr0) {
+                    _[cr0lt ^= signed_(operand(0)) < constant(0),
+                      cr0gt ^= signed_(operand(0)) > constant(0),
+                      cr0eq ^= unsigned_(operand(0)) == constant(0)];
+                }
+            }
+            break;
+        case PPC_INS_RLWIMI: { //(ra & ~mask) | (rotl32(rs, sh) & mask);
+                auto mask = mask32(detail_->operands[3].imm, detail_->operands[4].imm);
+                _[operand(0) ^= ((unsigned_(operand(1)) << operand(2) | unsigned_(operand(1)) >> (constant(32) - operand(2))) & constant(mask))
+                    | (operand(1) & ~constant(mask))];
                 if (detail_->update_cr0) {
                     _[cr0lt ^= signed_(operand(0)) < constant(0),
                       cr0gt ^= signed_(operand(0)) > constant(0),
@@ -1046,7 +1130,7 @@ private:
             }
             break;
         case PPC_INS_SLDI: { // TODO: missing 3rd operand from Capstone
-                _(std::make_unique<core::ir::InlineAssembly>());
+                //_(std::make_unique<core::ir::InlineAssembly>());
                 /*_[operand(0) ^= (operand(1) << operand(2))];
                 if (detail_->update_cr0) {
                     _[cr0lt ^= signed_(operand(0)) < constant(0),
