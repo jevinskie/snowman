@@ -36,6 +36,6 @@ std::shared_ptr<core::arch::Instruction> PPCDisassembler::disassembleSingleInstr
     return nullptr;
 }
 
-}}} // namespace nc::arch::arm
+}}} // namespace nc::arch::ppc
 
 /* vim:set et sts=4 sw=4: */

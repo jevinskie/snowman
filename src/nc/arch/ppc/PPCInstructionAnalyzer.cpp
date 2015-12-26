@@ -150,16 +150,33 @@ private:
             return cachedDirectSuccessor;
         };
 
+        auto mask32 = [&](int mb, int me) -> unsigned int {
+            auto mask = 0;
+            for (int i = mb; i <= me; i++) {
+                mask |= (1<<(31-i));
+            }
+            return mask;
+        };
+
+        auto mask64 = [&](int mb, int me) -> unsigned int {
+            auto mask = 0;
+            for (int i = mb; i <= me; i++) {
+                mask |= (1<<(63-i));
+            }
+            return mask;
+        };
+
         using namespace core::irgen::expressions;
 
         //_[regizter(PPCRegisters::r2()) ^= constant(0x28438)]; // set RTOC here
 
         switch (instr->id) {
+            /* branch with link register NOT set */
         case PPC_INS_B:
         case PPC_INS_BA:
-        case PPC_INS_BC: { // bc 
+        case PPC_INS_BC: {
                 switch (detail_->bc) {
-                    case PPC_BC_INVALID: // direct branch
+                    case PPC_BC_INVALID:
                         _[jump(operand(0))];
                         break;
                     case PPC_BC_LT:
@@ -218,28 +235,9 @@ private:
                 }
             }
             break;
-        case PPC_INS_BDNZA:
-        case PPC_INS_BDNZ: {
-                _[
-                    regizter(PPCRegisters::ctr()) ^= regizter(PPCRegisters::ctr()) - constant(1),
-                    jump(~(regizter(PPCRegisters::ctr()) == constant(0)), operand(0), directSuccessor())
-                ];
-            }
-            break;
-        case PPC_INS_BDZA:
-        case PPC_INS_BDZ: {
-                _[
-                    regizter(PPCRegisters::ctr()) ^= regizter(PPCRegisters::ctr()) - constant(1),
-                    jump(regizter(PPCRegisters::ctr()) == constant(0), operand(0), directSuccessor())
-                ];
-            }
-            break;
-        case PPC_INS_BL:
-        case PPC_INS_BLA: {
-                _[call(operand(0))];
-            }
-            break;
-        case PPC_INS_BLR: {
+            /* branch to LR with link register NOT set */
+        case PPC_INS_BLR:
+        case PPC_INS_BCLR: {
             switch (detail_->bc) {
                 case PPC_BC_INVALID:
                         _[jump(regizter(PPCRegisters::lr()))];
@@ -307,15 +305,380 @@ private:
                 default:
                     _(std::make_unique<core::ir::InlineAssembly>());
                     break;
-                }
+                } /* switch */
             }
             break;
-        case PPC_INS_BCTR: {
-                _[jump(regizter(PPCRegisters::ctr()))];
+            /* branch to CTR register with link register NOT set */
+        case PPC_INS_BCTR:
+        case PPC_INS_BCCTR: {
+            switch (detail_->bc) {
+                case PPC_BC_INVALID: {
+                        _[jump(regizter(PPCRegisters::ctr()))];
+                    }
+                    break;
+                case PPC_BC_LT: {
+                        PPCExpressionFactoryCallback then(factory_, program->createBasicBlock(), instruction);
+                        then[ jump(regizter(PPCRegisters::ctr())) ];
+                        if (detail_->op_count == 1) {
+                            CCASE(lt, then.basicBlock(), directSuccessor())
+                        } else {
+                            _[jump(cr0lt, then.basicBlock(), directSuccessor())];
+                        }
+                    }
+                    break;
+                case PPC_BC_LE: {
+                        PPCExpressionFactoryCallback then(factory_, program->createBasicBlock(), instruction);
+                        then[ jump(regizter(PPCRegisters::ctr())) ];
+                        if (detail_->op_count == 1) {
+                            CCASE(gt, directSuccessor(), then.basicBlock())
+                        } else {
+                            _[jump(cr0gt, directSuccessor(), then.basicBlock())];
+                        }
+                    }
+                    break;
+                case PPC_BC_GT: {
+                        PPCExpressionFactoryCallback then(factory_, program->createBasicBlock(), instruction);
+                        then[ jump(regizter(PPCRegisters::ctr())) ];
+                        if (detail_->op_count == 1) {
+                            CCASE(gt, then.basicBlock(), directSuccessor())
+                        } else {
+                            _[jump(cr0gt, then.basicBlock(), directSuccessor())];
+                        }
+                    }
+                    break;
+                case PPC_BC_GE: {
+                        PPCExpressionFactoryCallback then(factory_, program->createBasicBlock(), instruction);
+                        then[ jump(regizter(PPCRegisters::ctr())) ];
+                        if (detail_->op_count == 1) {
+                            CCASE(lt, directSuccessor(), then.basicBlock())
+                        } else {
+                            _[jump(cr0lt, directSuccessor(), then.basicBlock())];
+                        }
+                    }
+                    break;
+                case PPC_BC_EQ: {
+                        PPCExpressionFactoryCallback then(factory_, program->createBasicBlock(), instruction);
+                        then[ jump(regizter(PPCRegisters::ctr())) ];
+                        if (detail_->op_count == 1) {
+                            CCASE(eq, then.basicBlock(), directSuccessor())
+                        } else {
+                            _[jump(cr0eq, then.basicBlock(), directSuccessor())];
+                        }
+                    }
+                    break;
+                case PPC_BC_NE: {
+                        PPCExpressionFactoryCallback then(factory_, program->createBasicBlock(), instruction);
+                        then[ jump(regizter(PPCRegisters::ctr())) ];
+                        if (detail_->op_count == 1) {
+                            NCCASE(eq, then.basicBlock(), directSuccessor())
+                        } else {
+                            _[jump(~cr0eq, then.basicBlock(), directSuccessor())];
+                        }
+                    }
+                    break;
+                default:
+                    _(std::make_unique<core::ir::InlineAssembly>());
+                    break;
+                } /* switch */
             }
             break;
-        case PPC_INS_BCTRL: {
-                _[call(regizter(PPCRegisters::ctr()))];
+            /* branch with link register set */
+        case PPC_INS_BL:
+        case PPC_INS_BLA:
+        case PPC_INS_BCL: {
+            switch (detail_->bc) {
+                case PPC_BC_INVALID:
+                    _[call(operand(0))];
+                    break;
+                case PPC_BC_LT: {
+                        PPCExpressionFactoryCallback then(factory_, program->createBasicBlock(), instruction);
+                        if (detail_->op_count > 1) {
+                            then[call(operand(1))];
+                            CCASE(lt, then.basicBlock(), directSuccessor())
+                        } else {
+                            then[call(operand(0))];
+                            _[jump(cr0lt, then.basicBlock(), directSuccessor())];
+                        }
+                    }
+                    break;
+                case PPC_BC_LE: {
+                        PPCExpressionFactoryCallback then(factory_, program->createBasicBlock(), instruction);
+                        if (detail_->op_count > 1) {
+                            then[call(operand(1))];
+                            CCASE(gt, directSuccessor(), then.basicBlock())
+                        } else {
+                            then[call(operand(0))];
+                            _[jump(cr0gt, directSuccessor(), then.basicBlock())];
+                        }
+                    }
+                    break;
+                case PPC_BC_GT: {
+                        PPCExpressionFactoryCallback then(factory_, program->createBasicBlock(), instruction);
+                        if (detail_->op_count > 1) {
+                            then[call(operand(1))];
+                            CCASE(gt, then.basicBlock(), directSuccessor())
+                        } else {
+                            then[call(operand(0))];
+                            _[jump(cr0gt, then.basicBlock(), directSuccessor())];
+                        }
+                    }
+                    break;
+                case PPC_BC_GE: {
+                        PPCExpressionFactoryCallback then(factory_, program->createBasicBlock(), instruction);
+                        if (detail_->op_count > 1) {
+                            then[call(operand(1))];
+                            CCASE(lt, directSuccessor(), then.basicBlock())
+                        } else {
+                            then[call(operand(0))];
+                            _[jump(cr0lt, directSuccessor(), then.basicBlock())];
+                        }
+                    }
+                    break;
+                case PPC_BC_EQ: {
+                        PPCExpressionFactoryCallback then(factory_, program->createBasicBlock(), instruction);
+                        if (detail_->op_count > 1) {
+                            then[call(operand(1))];
+                            CCASE(eq, then.basicBlock(), directSuccessor())
+                        } else {
+                            then[call(operand(0))];
+                            _[jump(cr0eq, then.basicBlock(), directSuccessor())];
+                        }
+                    }
+                    break;
+                case PPC_BC_NE: {
+                        PPCExpressionFactoryCallback then(factory_, program->createBasicBlock(), instruction);
+                        if (detail_->op_count > 1) {
+                            then[call(operand(1))];
+                            NCCASE(eq, then.basicBlock(), directSuccessor())
+                        } else {
+                            then[call(operand(0))];
+                            _[jump(~cr0eq, then.basicBlock(), directSuccessor())];
+                        }
+                    }
+                    break;
+                default:
+                    _(std::make_unique<core::ir::InlineAssembly>());
+                    break;
+                } /* switch */
+            }
+            break;
+            /* branch to LR with link register set */
+        case PPC_INS_BLRL:
+        case PPC_INS_BCLRL: {
+            switch (detail_->bc) {
+                case PPC_BC_INVALID: {
+                        _[ call(regizter(PPCRegisters::lr())) ];
+                    }
+                    break;
+                case PPC_BC_LT: {
+                        PPCExpressionFactoryCallback then(factory_, program->createBasicBlock(), instruction);
+                        then[ call(regizter(PPCRegisters::lr())) ];
+                        if (detail_->op_count == 1) {
+                            CCASE(lt, then.basicBlock(), directSuccessor())
+                        } else {
+                            _[jump(cr0lt, then.basicBlock(), directSuccessor())];
+                        }
+                    }
+                    break;
+                case PPC_BC_LE: {
+                        PPCExpressionFactoryCallback then(factory_, program->createBasicBlock(), instruction);
+                        then[ call(regizter(PPCRegisters::lr())) ];
+                        if (detail_->op_count == 1) {
+                            CCASE(gt, directSuccessor(), then.basicBlock())
+                        } else {
+                            _[jump(cr0gt, directSuccessor(), then.basicBlock())];
+                        }
+                    }
+                    break;
+                case PPC_BC_GT: {
+                        PPCExpressionFactoryCallback then(factory_, program->createBasicBlock(), instruction);
+                        then[ call(regizter(PPCRegisters::lr())) ];
+                        if (detail_->op_count == 1) {
+                            CCASE(gt, then.basicBlock(), directSuccessor())
+                        } else {
+                            _[jump(cr0gt, then.basicBlock(), directSuccessor())];
+                        }
+                    }
+                    break;
+                case PPC_BC_GE: {
+                        PPCExpressionFactoryCallback then(factory_, program->createBasicBlock(), instruction);
+                        then[ call(regizter(PPCRegisters::lr())) ];
+                        if (detail_->op_count == 1) {
+                            CCASE(lt, then.basicBlock(), directSuccessor())
+                        } else {
+                            _[jump(cr0lt, then.basicBlock(), directSuccessor())];
+                        }
+                    }
+                case PPC_BC_EQ: {
+                        PPCExpressionFactoryCallback then(factory_, program->createBasicBlock(), instruction);
+                        then[ call(regizter(PPCRegisters::lr())) ];
+                        if (detail_->op_count == 1) {
+                            CCASE(eq, then.basicBlock(), directSuccessor())
+                        } else {
+                            _[jump(cr0eq, then.basicBlock(), directSuccessor())];
+                        }
+                    }
+                    break;
+                case PPC_BC_NE: {
+                        PPCExpressionFactoryCallback then(factory_, program->createBasicBlock(), instruction);
+                        then[ call(regizter(PPCRegisters::lr())) ];
+                        if (detail_->op_count == 1) {
+                            NCCASE(eq, then.basicBlock(), directSuccessor())
+                        } else {
+                            _[jump(cr0eq, then.basicBlock(), directSuccessor())];
+                        }
+                    }
+                    break;
+                default:
+                    _(std::make_unique<core::ir::InlineAssembly>());
+                    break;
+                } /* switch */
+            }
+            break;
+            /* branch to CTR with link register set */
+        case PPC_INS_BCTRL:
+        case PPC_INS_BCCTRL: {
+            switch (detail_->bc) {
+                case PPC_BC_INVALID: {
+                        _[ call(regizter(PPCRegisters::ctr())) ];
+                    }
+                    break;
+                case PPC_BC_LT: {
+                        PPCExpressionFactoryCallback then(factory_, program->createBasicBlock(), instruction);
+                        then[ call(regizter(PPCRegisters::ctr())) ];
+                        if (detail_->op_count == 1) {
+                            CCASE(lt, then.basicBlock(), directSuccessor())
+                        } else {
+                            _[jump(cr0lt, then.basicBlock(), directSuccessor())];
+                        }
+                    }
+                    break;
+                case PPC_BC_LE: {
+                        PPCExpressionFactoryCallback then(factory_, program->createBasicBlock(), instruction);
+                        then[ call(regizter(PPCRegisters::ctr())) ];
+                        if (detail_->op_count == 1) {
+                            CCASE(gt, directSuccessor(), then.basicBlock())
+                        } else {
+                            _[jump(cr0gt, directSuccessor(), then.basicBlock())];
+                        }
+                    }
+                    break;
+                case PPC_BC_GT: {
+                        PPCExpressionFactoryCallback then(factory_, program->createBasicBlock(), instruction);
+                        then[ call(regizter(PPCRegisters::ctr())) ];
+                        if (detail_->op_count == 1) {
+                            CCASE(gt, then.basicBlock(), directSuccessor())
+                        } else {
+                            _[jump(cr0gt, then.basicBlock(), directSuccessor())];
+                        }
+                    }
+                    break;
+                case PPC_BC_GE: {
+                        PPCExpressionFactoryCallback then(factory_, program->createBasicBlock(), instruction);
+                        then[ call(regizter(PPCRegisters::ctr())) ];
+                        if (detail_->op_count == 1) {
+                            CCASE(lt, directSuccessor(), then.basicBlock())
+                        } else {
+                            _[jump(cr0lt, directSuccessor(), then.basicBlock())];
+                        }
+                    }
+                    break;
+                case PPC_BC_EQ: {
+                        PPCExpressionFactoryCallback then(factory_, program->createBasicBlock(), instruction);
+                        then[ call(regizter(PPCRegisters::ctr())) ];
+                        if (detail_->op_count == 1) {
+                            CCASE(eq, then.basicBlock(), directSuccessor())
+                        } else {
+                            _[jump(cr0eq, then.basicBlock(), directSuccessor())];
+                        }
+                    }
+                    break;
+                case PPC_BC_NE: {
+                        PPCExpressionFactoryCallback then(factory_, program->createBasicBlock(), instruction);
+                        then[ call(regizter(PPCRegisters::ctr())) ];
+                        if (detail_->op_count == 1) {
+                            NCCASE(eq, then.basicBlock(), directSuccessor())
+                        } else {
+                            _[jump(~cr0eq, then.basicBlock(), directSuccessor())];
+                        }
+                    }
+                    break;
+                default:
+                    _(std::make_unique<core::ir::InlineAssembly>());
+                    break;
+                } /* switch */
+            }
+            break;
+        case PPC_INS_BDNZ:
+        case PPC_INS_BDNZA: {
+                _[
+                    regizter(PPCRegisters::ctr()) ^= regizter(PPCRegisters::ctr()) - constant(1),
+                    jump(~(regizter(PPCRegisters::ctr()) == constant(0)), operand(0), directSuccessor())
+                ];
+            }
+            break;
+        case PPC_INS_BDNZLR: {
+                PPCExpressionFactoryCallback then(factory_, program->createBasicBlock(), instruction);
+                then[ jump(regizter(PPCRegisters::lr())) ];
+                _[
+                    regizter(PPCRegisters::ctr()) ^= regizter(PPCRegisters::ctr()) - constant(1),
+                    jump(~(regizter(PPCRegisters::ctr()) == constant(0)), then.basicBlock(), directSuccessor())
+                ];
+            }
+            break;
+        case PPC_INS_BDNZL:
+        case PPC_INS_BDNZLA:{
+                PPCExpressionFactoryCallback then(factory_, program->createBasicBlock(), instruction);
+                then[ call(operand(0)) ];
+                _[
+                    regizter(PPCRegisters::ctr()) ^= regizter(PPCRegisters::ctr()) - constant(1),
+                    jump(~(regizter(PPCRegisters::ctr()) == constant(0)), then.basicBlock(), directSuccessor())
+                ];
+            }
+            break;
+        case PPC_INS_BDNZLRL: {
+                PPCExpressionFactoryCallback then(factory_, program->createBasicBlock(), instruction);
+                then[ call(regizter(PPCRegisters::lr())) ];
+                _[
+                    regizter(PPCRegisters::ctr()) ^= regizter(PPCRegisters::ctr()) - constant(1),
+                    jump(~(regizter(PPCRegisters::ctr()) == constant(0)), then.basicBlock(), directSuccessor())
+                ];
+            }
+            break;
+        case PPC_INS_BDZ:
+        case PPC_INS_BDZA: {
+                _[
+                    regizter(PPCRegisters::ctr()) ^= regizter(PPCRegisters::ctr()) - constant(1),
+                    jump(regizter(PPCRegisters::ctr()) == constant(0), operand(0), directSuccessor())
+                ];
+            }
+            break;
+        case PPC_INS_BDZLR: {
+                PPCExpressionFactoryCallback then(factory_, program->createBasicBlock(), instruction);
+                then[ jump(regizter(PPCRegisters::lr())) ];
+                _[
+                    regizter(PPCRegisters::ctr()) ^= regizter(PPCRegisters::ctr()) - constant(1),
+                    jump(regizter(PPCRegisters::ctr()) == constant(0), then.basicBlock(), directSuccessor())
+                ];
+            }
+            break;
+        case PPC_INS_BDZL:
+        case PPC_INS_BDZLA: {
+                PPCExpressionFactoryCallback then(factory_, program->createBasicBlock(), instruction);
+                then[ call(operand(0)) ];
+                _[
+                    regizter(PPCRegisters::ctr()) ^= regizter(PPCRegisters::ctr()) - constant(1),
+                    jump(regizter(PPCRegisters::ctr()) == constant(0), then.basicBlock(), directSuccessor())
+                ];
+            }
+            break;
+        case PPC_INS_BDZLRL: {
+                PPCExpressionFactoryCallback then(factory_, program->createBasicBlock(), instruction);
+                then[ call(regizter(PPCRegisters::lr())) ];
+                _[
+                    regizter(PPCRegisters::ctr()) ^= regizter(PPCRegisters::ctr()) - constant(1),
+                    jump(regizter(PPCRegisters::ctr()) == constant(0), then.basicBlock(), directSuccessor())
+                ];
             }
             break;
         case PPC_INS_MTLR: {
@@ -328,6 +691,14 @@ private:
             break;
         case PPC_INS_MTCTR: {
                 _[regizter(PPCRegisters::ctr()) ^= operand(0)];
+            }
+            break;
+        case PPC_INS_MFCR: {
+                _[operand(0) ^= regizter(PPCRegisters::cr())];
+            }
+            break;
+        case PPC_INS_MTOCRF: { // TODO: missing FXM operand from Capstone
+                _(std::make_unique<core::ir::InlineAssembly>());
             }
             break;
         case PPC_INS_SC: {
@@ -437,7 +808,7 @@ private:
             }
             break;
         case PPC_INS_ADDI: {
-                _[operand(0) ^= (operand(1) + operand(2))];
+                _[operand(0) ^= (operand(1) + signed_(operand(2)))];
             }
             break;
         case PPC_INS_ADDC: // TODO
@@ -461,7 +832,7 @@ private:
         case PPC_INS_SUB:
         case PPC_INS_SUBC:
         case PPC_INS_SUBF:
-        case PPC_INS_SUBFC: {
+        case PPC_INS_SUBFC: { // TODO
                 _[operand(0) ^= operand(1) - operand(2)];
                 if (detail_->update_cr0) {
                     _[cr0lt ^= signed_(operand(0)) < constant(0),
@@ -557,16 +928,91 @@ private:
             }
             break;
         case PPC_INS_RLDICL: {
+                // mnemonics (the ones not handled by Capstone)
                 if ((64 - detail_->operands[2].imm) == detail_->operands[3].imm) { // SRDI
                     _[operand(0) ^= (signed_(operand(1)) >> operand(3))];
+                //} else if () {// EXTRDI
+                //} else if () {// ROTRDI
                 } else {
-                    _(std::make_unique<core::ir::InlineAssembly>());
+                    auto mask = mask64(detail_->operands[3].imm,63);
+                    _[operand(0) ^= (unsigned_(operand(1)) >> operand(2) | operand(1) << (constant(64) - operand(2))) & constant(mask)];
+                    //_(std::make_unique<core::ir::InlineAssembly>());
                 }
                 if (detail_->update_cr0) {
                     _[cr0lt ^= signed_(operand(0)) < constant(0),
                       cr0gt ^= signed_(operand(0)) > constant(0),
                       cr0eq ^= unsigned_(operand(0)) == constant(0)];
                 }
+            }
+            break;
+        case PPC_INS_RLDICR: {
+                auto mask = mask64(0, detail_->operands[3].imm);
+                _[operand(0) ^= (unsigned_(operand(1)) >> operand(2) | operand(1) << (constant(64) - operand(2))) & constant(mask)];
+                if (detail_->update_cr0) {
+                    _[cr0lt ^= signed_(operand(0)) < constant(0),
+                      cr0gt ^= signed_(operand(0)) > constant(0),
+                      cr0eq ^= unsigned_(operand(0)) == constant(0)];
+                }
+            }
+            break;
+        case PPC_INS_RLDIC: {
+                auto mask = mask64(detail_->operands[3].imm, 63 - detail_->operands[2].imm);
+                _[operand(0) ^= (unsigned_(operand(1)) >> operand(2) | operand(1) << (constant(64) - operand(2))) & constant(mask)];
+                if (detail_->update_cr0) {
+                    _[cr0lt ^= signed_(operand(0)) < constant(0),
+                      cr0gt ^= signed_(operand(0)) > constant(0),
+                      cr0eq ^= unsigned_(operand(0)) == constant(0)];
+                }
+            }
+            break;
+        case PPC_INS_ROTLD:
+        case PPC_INS_ROTLDI: {
+                _[operand(0) ^= (operand(1) << operand(2) | unsigned_(operand(1)) >> (constant(64) - operand(2)))];
+                if (detail_->update_cr0) {
+                    _[cr0lt ^= signed_(operand(0)) < constant(0),
+                      cr0gt ^= signed_(operand(0)) > constant(0),
+                      cr0eq ^= unsigned_(operand(0)) == constant(0)];
+                }
+            }
+            break;
+        case PPC_INS_RLWNM: // 32 bit
+        case PPC_INS_RLWINM: {
+                auto mask = mask32(detail_->operands[3].imm, detail_->operands[4].imm);
+                if (detail_->operands[2].imm > 0) {
+                    _[operand(0) ^= (unsigned_(operand(1)) << operand(2) | unsigned_(operand(1)) >> (constant(32) - operand(2))) & constant(mask)];
+                } else {
+                    _[operand(0) ^= operand(1) & constant(mask)];
+                }
+                if (detail_->update_cr0) {
+                    _[cr0lt ^= signed_(operand(0)) < constant(0),
+                      cr0gt ^= signed_(operand(0)) > constant(0),
+                      cr0eq ^= unsigned_(operand(0)) == constant(0)];
+                }
+            }
+            break;
+        case PPC_INS_RLDCL: {
+                auto mask = mask64(detail_->operands[3].imm, 63);
+                _[operand(0) ^= (unsigned_(operand(1)) << operand(2) | unsigned_(operand(1)) >> (constant(64) - operand(2))) & constant(mask)];
+                if (detail_->update_cr0) {
+                    _[cr0lt ^= signed_(operand(0)) < constant(0),
+                      cr0gt ^= signed_(operand(0)) > constant(0),
+                      cr0eq ^= unsigned_(operand(0)) == constant(0)];
+                }
+            }
+            break;
+        case PPC_INS_RLDCR: {
+                auto mask = mask64(0, detail_->operands[3].imm);
+                _[operand(0) ^= (unsigned_(operand(1)) << operand(2) | unsigned_(operand(1)) >> (constant(64) - operand(2))) & constant(mask)];
+                if (detail_->update_cr0) {
+                    _[cr0lt ^= signed_(operand(0)) < constant(0),
+                      cr0gt ^= signed_(operand(0)) > constant(0),
+                      cr0eq ^= unsigned_(operand(0)) == constant(0)];
+                }
+            }
+            break;
+        case PPC_INS_ROTLW:
+        case PPC_INS_ROTLWI: {
+                _[operand(0) ^= (operand(1) << operand(2) | unsigned_(operand(1)) >> (constant(32) - operand(2)))];
             }
             break;
         case PPC_INS_SRWI: {
@@ -590,8 +1036,16 @@ private:
                 }
             }
             break;
-        case PPC_INS_SLWI:
-        case PPC_INS_SLDI: {// TODO: missing 3rd operand from Capstone
+        case PPC_INS_SLWI: {
+                _[operand(0) ^= (operand(1) << operand(2))];
+                if (detail_->update_cr0) {
+                    _[cr0lt ^= signed_(operand(0)) < constant(0),
+                      cr0gt ^= signed_(operand(0)) > constant(0),
+                      cr0eq ^= unsigned_(operand(0)) == constant(0)];
+                }
+            }
+            break;
+        case PPC_INS_SLDI: { // TODO: missing 3rd operand from Capstone
                 _(std::make_unique<core::ir::InlineAssembly>());
                 /*_[operand(0) ^= (operand(1) << operand(2))];
                 if (detail_->update_cr0) {

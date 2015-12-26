@@ -10,7 +10,7 @@
 namespace nc { namespace arch { namespace ppc {
 
 /**
- * Container class for ARM registers.
+ * Container class for PPC registers.
  */
 class PPCRegisters: public core::arch::StaticRegisters<PPCRegisters> {
 public:
