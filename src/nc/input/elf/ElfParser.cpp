@@ -167,6 +167,9 @@ private:
         byteOrder_.convertFrom(ehdr_.e_shstrndx);
 
         switch (ehdr_.e_machine) {
+            case EM_SPU:
+                image_->platform().setArchitecture(QLatin1String("spu-be"));
+                break;
             case EM_PPC:
             case EM_PPC64:
                 if (byteOrder_ == ByteOrder::LittleEndian) {

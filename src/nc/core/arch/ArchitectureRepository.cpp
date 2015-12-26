@@ -11,6 +11,7 @@
 #include <nc/arch/x86/X86Architecture.h>
 #include <nc/arch/arm/ArmArchitecture.h>
 #include <nc/arch/ppc/PPCArchitecture.h>
+#include <nc/arch/spu/SPUArchitecture.h>
 
 #include "Architecture.h"
 
@@ -21,7 +22,8 @@ namespace {
 ArchitectureRepository *createInstance() {
     using nc::arch::arm::ArmArchitecture;
     using nc::arch::x86::X86Architecture;
-	using nc::arch::ppc::PPCArchitecture;
+    using nc::arch::ppc::PPCArchitecture;
+    using nc::arch::spu::SPUArchitecture;
 
     static ArchitectureRepository result;
     result.registerArchitecture(std::make_unique<ArmArchitecture>(ByteOrder::LittleEndian));
@@ -31,6 +33,7 @@ ArchitectureRepository *createInstance() {
     result.registerArchitecture(std::make_unique<X86Architecture>(X86Architecture::LONG_MODE));
     result.registerArchitecture(std::make_unique<PPCArchitecture>(ByteOrder::LittleEndian));
     result.registerArchitecture(std::make_unique<PPCArchitecture>(ByteOrder::BigEndian));
+    result.registerArchitecture(std::make_unique<SPUArchitecture>(ByteOrder::BigEndian));
     return &result;
 }
 
