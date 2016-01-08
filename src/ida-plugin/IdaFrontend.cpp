@@ -146,6 +146,8 @@ QString IdaFrontend::architecture() {
         return QLatin1String("ppc-be");
     } else if (inf.procName == QLatin1String("PPCL")) {
         return QLatin1String("ppc-le");
+    } else if (inf.procName == QLatin1String("spu")) {
+        return QLatin1String("spu-be");
     } else {
         /* Assume x86 by default. */
         if (segment_t *segment = get_segm_by_name(".text")) {
