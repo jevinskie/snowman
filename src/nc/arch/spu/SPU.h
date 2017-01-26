@@ -21,7 +21,7 @@ typedef enum {
   UNKNOWN_IFORMAT
 } spu_iformat;
 
-enum spu_insn
+typedef enum
 {
     M_BR,
     M_BRSL,
@@ -261,7 +261,7 @@ enum spu_insn
     M_BITE,
     M_BIFD,
     M_BIFE
-};
+} spu_insn;
 
 typedef enum {
   A_T,  /* register at pos 0 */
@@ -306,7 +306,7 @@ struct spu_opcode
    spu_insn insn;
    spu_iformat insn_type;
    unsigned int opcode;
-   char *mnemonic;
+   const char *mnemonic;
    int arg[5];
 };
 

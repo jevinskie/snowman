@@ -24,6 +24,8 @@ namespace nc {
 namespace arch {
 namespace spu {
 
+const SmallByteSize SPUInstruction::MAX_SIZE = 4;
+
 namespace {
 
 class SPUExpressionFactory: public core::irgen::expressions::ExpressionFactory<SPUExpressionFactory> {

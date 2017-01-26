@@ -214,7 +214,7 @@ spu_disassemble_insn (unsigned int memaddr, unsigned int insn)
   int hex_value;
   int status;
   const struct spu_opcode *index;
-  enum spu_insns tag;
+  spu_insn tag;
 
   insn = s32(insn);
   index = get_index_for_opcode (insn);
@@ -229,7 +229,7 @@ spu_disassemble_insn (unsigned int memaddr, unsigned int insn)
       int i;
       int paren = 0;
       int len = 0;
-      tag = (enum spu_insns)(index - spu_opcodes);
+      tag = (spu_insn)(index - spu_opcodes);
       len += sprintf(buffer, "%s", index->mnemonic);
       if (tag == M_BI || tag == M_BISL || tag == M_IRET || tag == M_BISLED
 	  || tag == M_BIHNZ || tag == M_BIHZ || tag == M_BINZ || tag == M_BIZ

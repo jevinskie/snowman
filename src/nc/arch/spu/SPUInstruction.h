@@ -38,7 +38,7 @@ namespace spu {
 class SPUInstruction: public core::arch::Instruction {
 public:
     /** Max size of an instruction. */
-    static const SmallByteSize MAX_SIZE = 4;
+    static const SmallByteSize MAX_SIZE;
 
     /** Binary representation of the instruction. */
     int32_t bytes_;

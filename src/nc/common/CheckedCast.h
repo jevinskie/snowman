@@ -87,7 +87,7 @@ namespace nc {
         boost::is_polymorphic<From>,
         To
     >::type checked_cast(From &source) {
-        static_assert(boost::is_reference<To>::value, "Target type must be a reference");
+        static_assert(std::is_reference<To>::value, "Target type must be a reference");
 #ifndef NDEBUG
         return dynamic_cast<To>(source);
 #else
